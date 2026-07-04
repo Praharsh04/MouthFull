@@ -70,8 +70,8 @@ class LLMService:
 
     async def _on_prompt_ready(self, event: PromptReady) -> None:
         self._aborted = False
-        if not self._config.enabled or not self._engine:
-            # Pass-through if disabled
+        if not self._config.enabled or not self._engine or not getattr(event, 'is_prompt', True):
+            # Pass-through if disabled or if this is not a prompt (raw transcript)
             await self._bus.emit(RefinedTextReady(text=event.text))
             return
 

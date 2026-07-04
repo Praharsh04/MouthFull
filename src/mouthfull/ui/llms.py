@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
 
 from mouthfull.ui.theme import Colors
 from mouthfull.ui.widgets import Card, StatusBadge
+from mouthfull.ui.widgets.toggle_switch import ToggleSwitch
 
 CONN_META = {
     "untested": ("neutral", "Not Tested"),
@@ -165,6 +166,7 @@ class LLMProvidersPage(QWidget):
     on_api_key_changed = Signal(str, str)
     on_model_variant_changed = Signal(str, str)
     on_save_clicked = Signal(str)
+    on_enable_toggled = Signal(bool)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -185,9 +187,20 @@ class LLMProvidersPage(QWidget):
         header.addWidget(add_btn)
         outer.addLayout(header)
 
-        subtitle = QLabel("Choose the language model used to clean up transcripts and interpret voice commands.")
+        subtitle = QLabel("Choose the language model used to evaluate prompts.")
         subtitle.setStyleSheet(f"color: {Colors.TEXT_MUTED}; font-size: 11px;")
         outer.addWidget(subtitle)
+
+        toggle_row = QHBoxLayout()
+        self.enable_toggle = ToggleSwitch()
+        toggle_label = QLabel("Enable LLM Provider")
+        toggle_label.setStyleSheet("color: #e0e0e0; font-size: 16px; font-weight: 500;")
+        toggle_row.addWidget(self.enable_toggle)
+        toggle_row.addWidget(toggle_label)
+        toggle_row.addStretch()
+        outer.addLayout(toggle_row)
+        
+        self.enable_toggle.toggled_signal.connect(self.on_enable_toggled.emit)
 
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)

@@ -88,7 +88,7 @@ class APIKeys(BaseSettings):
 class LLMConfig(BaseModel):
     """LLM refinement engine settings."""
 
-    enabled: bool = True
+    enabled: bool = False
     provider: str = "ollama"  # e.g., llamacpp, ollama, openai, anthropic, gemini, openrouter, custom
     model: str = "llama3"
     api_base: Optional[str] = None  # Used for custom APIs or overriding defaults
@@ -200,7 +200,7 @@ def load_config(path: str | Path | None = None) -> AppConfig:
 
     if not config_path.exists():
         # Create a default configuration if it doesn't exist in AppData
-        config_path.write_text("audio:\n  device_index: null\nstt:\n  engine: parakeet\n  model_size: nvidia/parakeet-tdt-1.1b\nllm:\n  enabled: true\n  provider: ollama\nhotkey:\n  combination: ctrl+space\n  mode: toggle\ninjection:\n  method: clipboard\nui:\n  theme: system\n")
+        config_path.write_text("audio:\n  device_index: null\nstt:\n  engine: parakeet\n  model_size: nvidia/parakeet-tdt-1.1b\nllm:\n  enabled: false\n  provider: ollama\nhotkey:\n  combination: ctrl+space\n  mode: toggle\ninjection:\n  method: clipboard\nui:\n  theme: system\n")
         
     try:
         raw = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}

@@ -45,7 +45,7 @@ class PromptProcessorService:
 
         if not self._config.enabled or not event.text.strip():
             # Pass-through
-            await self._bus.emit(PromptReady(text=event.text))
+            await self._bus.emit(PromptReady(text=event.text, is_prompt=False))
             return
 
         logger.info("Applying prompt template to transcript...")
@@ -57,9 +57,9 @@ class PromptProcessorService:
                 return
 
             logger.debug(f"Generated prompt: {prompt}")
-            await self._bus.emit(PromptReady(text=prompt))
+            await self._bus.emit(PromptReady(text=prompt, is_prompt=True))
 
         except Exception as e:
             logger.error(f"Prompt processing failed: {e}")
             # Fallback to unrefined text
-            await self._bus.emit(PromptReady(text=event.text))
+            await self._bus.emit(PromptReady(text=event.text, is_prompt=False))

@@ -65,6 +65,7 @@ class PromptReady:
     """Emitted when the prompt processor has prepared the text for the LLM."""
 
     text: str
+    is_prompt: bool = True
 
 
 @dataclass(frozen=True, slots=True)

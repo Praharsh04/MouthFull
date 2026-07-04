@@ -81,6 +81,7 @@ class UIBridge(QObject):
         self.window.llms_page.on_api_key_changed.connect(self._on_llm_api_key_changed)
         self.window.llms_page.on_model_variant_changed.connect(self._on_llm_model_changed)
         self.window.llms_page.on_save_clicked.connect(self._on_llm_save)
+        self.window.llms_page.on_enable_toggled.connect(self._on_llm_enabled_toggled)
 
         self.window.prompt_page.on_settings_changed.connect(self._on_prompt_settings_changed)
 
@@ -406,22 +407,32 @@ class UIBridge(QObject):
         
         providers_state = []
         for p in AVAILABLE_PROVIDERS:
-            state = dict(p)
-            state["active"] = (config.llm.provider == p["id"])
-            key_val = getattr(api_keys, f"{p['id']}_api_key", None)
-            state["key_set"] = bool(key_val)
-            state["status"] = "untested"
-            if state["active"]:
-                state["current_model"] = config.llm.model
-            providers_state.append(state)
-        
+            p_dict = dict(p)
+            p_dict["status"] = "success" if self.app._config.llm.provider == p["id"] else "untested"
+            if self.app._config.llm.provider == p["id"]:
+                p_dict["current_model"] = self.app._config.llm.model
+            
+            # Mask API keys if they exist
+            key_name = f"{p['id']}_api_key"
+            if getattr(self.app._api_keys, key_name, None):
+                p_dict["key_set"] = True
+
+            providers_state.append(p_dict)
+            
         self.window.llms_page.update_providers(providers_state)
+        self.window.llms_page.enable_toggle.set_checked_silent(self.app._config.llm.enabled)
 
     def _on_llm_provider_selected(self, provider_id: str):
         from mouthfull.configs.config import save_config
         self.app._config.llm.provider = provider_id
         save_config(self.app._config)
         self.window.llms_page.set_active_provider(provider_id)
+        asyncio.run_coroutine_threadsafe(self._restart_llm(), self.loop)
+        
+    def _on_llm_enabled_toggled(self, checked: bool):
+        from mouthfull.configs.config import save_config
+        self.app._config.llm.enabled = checked
+        save_config(self.app._config)
         asyncio.run_coroutine_threadsafe(self._restart_llm(), self.loop)
 
     def _on_llm_model_changed(self, provider_id: str, model_name: str):
