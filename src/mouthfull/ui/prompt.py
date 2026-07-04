@@ -30,7 +30,7 @@ class PromptProcessorPage(QWidget):
 
         # Toggle Switch
         toggle_row = QHBoxLayout()
-        self.enable_toggle = ToggleSwitch(width=44, height=24)
+        self.enable_toggle = ToggleSwitch()
         toggle_label = QLabel("Enable Prompt Processor")
         toggle_label.setStyleSheet("color: #e0e0e0; font-size: 16px; font-weight: 500;")
         
