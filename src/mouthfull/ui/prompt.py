@@ -103,10 +103,11 @@ class PromptProcessorPage(QWidget):
         # Signals
         self.btn_save.clicked.connect(self._on_save)
         self.btn_reset.clicked.connect(self._on_reset)
+        self.enable_toggle.toggled_signal.connect(lambda _: self._on_save())
 
     def set_config(self, config_dict):
         """Load state from config."""
-        self.enable_toggle.setChecked(config_dict.get("enabled", False))
+        self.enable_toggle.set_checked_silent(config_dict.get("enabled", False))
         self.template_input.setPlainText(config_dict.get("template", "Please process the following dictated text carefully:\n\n{{input}}\n\nProvide the refined text below."))
 
     def _on_save(self):
