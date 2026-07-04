@@ -100,6 +100,12 @@ class DashboardWindow:
         btn_settings = ttk.Button(actions_frame, text="Settings", command=self._on_settings)
         btn_settings.pack(side=tk.LEFT, padx=(0, 10))
         
+        btn_models = ttk.Button(actions_frame, text="Speech Models", command=self._on_models)
+        btn_models.pack(side=tk.LEFT, padx=(0, 10))
+        
+        btn_llms = ttk.Button(actions_frame, text="LLM Providers", command=self._on_llms)
+        btn_llms.pack(side=tk.LEFT, padx=(0, 10))
+        
         btn_logs = ttk.Button(actions_frame, text="View Logs", command=self._on_logs)
         btn_logs.pack(side=tk.LEFT)
         
@@ -152,6 +158,16 @@ class DashboardWindow:
     def _on_settings(self):
         from voiceflow.ui.settings import SettingsWindow
         win = SettingsWindow(self._config)
+        win.show()
+
+    def _on_models(self):
+        from voiceflow.ui.models import ModelManagerWindow
+        win = ModelManagerWindow(self._config, self._bus)
+        win.show()
+
+    def _on_llms(self):
+        from voiceflow.ui.llms import LLMManagerWindow
+        win = LLMManagerWindow(self._config, self._bus)
         win.show()
 
     def _on_logs(self):
