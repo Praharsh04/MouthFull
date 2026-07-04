@@ -21,8 +21,13 @@ def get_webview_window():
     if _webview_window is None:
         import webview
         import os
+        import sys
         
-        current_dir = os.path.dirname(os.path.abspath(__file__))
+        if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+            current_dir = os.path.join(sys._MEIPASS, "voiceflow", "ui")
+        else:
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            
         html_path = os.path.join(current_dir, "assets", "orb.html")
         
         if os.path.exists(html_path):

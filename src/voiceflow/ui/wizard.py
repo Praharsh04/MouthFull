@@ -62,8 +62,8 @@ class SetupWizard:
             self.config.llm.model = "gpt-4o-mini"
         self.config.ui.first_run = False
         import json
-        from pathlib import Path
-        config_path = Path("config.json")
+        from voiceflow.core.config import get_default_config_path
+        config_path = get_default_config_path()
         try:
             with open(config_path, "w") as f:
                 json.dump(self.config.dict(), f, indent=4)

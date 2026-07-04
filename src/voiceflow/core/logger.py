@@ -33,18 +33,19 @@ def setup_logging(config: AppConfig) -> None:
     """
     log_cfg = config.logging
 
-    # Console sink — always enabled.
-    logger.add(
-        sys.stderr,
-        level=log_cfg.level.upper(),
-        format=(
-            "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
-            "<level>{level: <8}</level> | "
-            "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> | "
-            "<level>{message}</level>"
-        ),
-        colorize=True,
-    )
+    # Console sink — only if stderr is available (not None in --noconsole builds).
+    if sys.stderr is not None:
+        logger.add(
+            sys.stderr,
+            level=log_cfg.level.upper(),
+            format=(
+                "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
+                "<level>{level: <8}</level> | "
+                "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> | "
+                "<level>{message}</level>"
+            ),
+            colorize=True,
+        )
 
     # File sink — optional.
     if log_cfg.log_file:

@@ -166,39 +166,37 @@ class AppConfig(BaseModel):
 # Loader
 # ---------------------------------------------------------------------------
 
-_DEFAULT_CONFIG_PATH = Path("config.yaml")
+def get_appdata_dir() -> Path:
+    """Get the standard Windows AppData path for VoiceFlow."""
+    import os
+    appdata = os.environ.get('APPDATA', '')
+    if not appdata:
+        appdata = str(Path.home() / 'AppData' / 'Roaming')
+    
+    path = Path(appdata) / 'VoiceFlowLocal'
+    path.mkdir(parents=True, exist_ok=True)
+    return path
 
+def get_default_config_path() -> Path:
+    return get_appdata_dir() / "config.yaml"
 
 def load_config(path: str | Path | None = None) -> AppConfig:
-    """Load and validate application configuration from a YAML file.
-
-    Parameters
-    ----------
-    path:
-        Path to the YAML config file.  Falls back to ``config.yaml``
-        in the current working directory.
-
-    Returns
-    -------
-    AppConfig
-        The fully validated configuration object.
-
-    Raises
-    ------
-    ConfigError
-        If the file cannot be read or validation fails.
-    """
-    config_path = Path(path) if path else _DEFAULT_CONFIG_PATH
+    config_path = Path(path) if path else get_default_config_path()
 
     if not config_path.exists():
-        raise ConfigError(f"Configuration file not found: {config_path.resolve()}")
-
+        # Create a default configuration if it doesn't exist in AppData
+        config_path.write_text("audio:\n  device_index: null\nstt:\n  engine: parakeet\nllm:\n  enabled: true\n  provider: ollama\nhotkey:\n  combination: ctrl+space\ninjection:\n  method: clipboard\nui:\n  theme: system\n")
+        
     try:
         raw = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
     except yaml.YAMLError as exc:
         raise ConfigError(f"Failed to parse YAML: {exc}") from exc
 
     try:
-        return AppConfig(**raw)
+        config = AppConfig(**raw)
+        # Force log file to be inside AppData if not absolute
+        if config.logging.log_file and not Path(config.logging.log_file).is_absolute():
+            config.logging.log_file = str(get_appdata_dir() / "logs" / Path(config.logging.log_file).name)
+        return config
     except Exception as exc:
         raise ConfigError(f"Configuration validation failed: {exc}") from exc

@@ -365,7 +365,8 @@ class SettingsWindow:
         # Toggle Windows Startup
         self._toggle_windows_startup(self._startup_var.get())
 
-        config_path = Path("config.yaml")
+        from voiceflow.core.config import get_default_config_path
+        config_path = get_default_config_path()
         if not config_path.exists():
             config_path.write_text("audio:\n  device_index: null\nstt:\n  engine: parakeet\nllm:\n  enabled: true\n  provider: ollama\nhotkey:\n  combination: ctrl+space\ninjection:\n  method: clipboard\nui:\n  theme: system\n")
 
@@ -433,7 +434,8 @@ class SettingsWindow:
         if provider not in ["ollama", "llamacpp"]:
             api_key = self._llm_api_key.get().strip()
             if api_key:
-                env_path = Path(".env")
+                from voiceflow.core.config import get_appdata_dir
+                env_path = get_appdata_dir() / ".env"
                 env_content = env_path.read_text(encoding="utf-8") if env_path.exists() else ""
                 key_name = f"{provider.upper()}_API_KEY"
                 if f"{key_name}=" in env_content:
