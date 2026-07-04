@@ -16,7 +16,7 @@ class SetupWizard:
     def show_blocking(self):
         self.root = tk.Tk()
         self.root.title("Welcome to VoiceFlow Local")
-        self.root.geometry("500x400")
+        self.root.geometry("500x350")
         self.root.resizable(False, False)
         
         style = ttk.Style(self.root)
@@ -35,20 +35,13 @@ class SetupWizard:
         audio_frame.pack(fill=tk.X, pady=(0, 15))
         ttk.Label(audio_frame, text="VoiceFlow uses your default system microphone.", wraplength=400).pack()
         
-        # LLM
-        llm_frame = ttk.LabelFrame(main_frame, text="2. LLM Provider (Optional)", padding="10")
-        llm_frame.pack(fill=tk.X, pady=(0, 15))
-        
-        ttk.Label(llm_frame, text="If you use OpenAI, enter your API key to refine dictations. Leave blank for local.", wraplength=400).pack(pady=(0, 5))
-        
-        self.api_key_var = tk.StringVar(value=self.config.llm.api_key or "")
-        entry = ttk.Entry(llm_frame, textvariable=self.api_key_var, show="*")
-        entry.pack(fill=tk.X)
-        
         # Hotkey
-        hotkey_frame = ttk.LabelFrame(main_frame, text="3. Global Hotkey", padding="10")
+        hotkey_frame = ttk.LabelFrame(main_frame, text="2. Global Hotkey", padding="10")
         hotkey_frame.pack(fill=tk.X, pady=(0, 20))
-        ttk.Label(hotkey_frame, text=f"Hold {self.config.hotkey.combination.upper()} to record.", font=("Segoe UI", 10, "bold")).pack()
+        if self.config.hotkey.mode == "toggle":
+            ttk.Label(hotkey_frame, text=f"Press {self.config.hotkey.combination.upper()} to start recording, and Enter to stop.", font=("Segoe UI", 10, "bold")).pack()
+        else:
+            ttk.Label(hotkey_frame, text=f"Hold {self.config.hotkey.combination.upper()} to record.", font=("Segoe UI", 10, "bold")).pack()
         
         # Finish
         ttk.Button(main_frame, text="Complete Setup", command=self._finish).pack(pady=10)
@@ -56,17 +49,15 @@ class SetupWizard:
         self.root.mainloop()
         
     def _finish(self):
-        self.config.llm.api_key = self.api_key_var.get()
-        if self.config.llm.api_key:
-            self.config.llm.provider = "openai"
-            self.config.llm.model = "gpt-4o-mini"
         self.config.ui.first_run = False
-        import json
+        import yaml
         from voiceflow.core.config import get_default_config_path
         config_path = get_default_config_path()
         try:
-            with open(config_path, "w") as f:
-                json.dump(self.config.dict(), f, indent=4)
-        except Exception:
-            pass
+            # Dump to dict, avoiding pydantic v2 warning if possible
+            data = self.config.model_dump() if hasattr(self.config, 'model_dump') else self.config.dict()
+            with open(config_path, "w", encoding="utf-8") as f:
+                yaml.safe_dump(data, f, default_flow_style=False)
+        except Exception as e:
+            print("Failed to save config in wizard:", e)
         self.root.destroy()

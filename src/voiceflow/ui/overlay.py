@@ -47,8 +47,8 @@ def get_webview_window():
             transparent=True,
             frameless=True,
             on_top=True,
-            width=160,
-            height=180,
+            width=300,
+            height=320,
             x=100,
             y=100
         )
