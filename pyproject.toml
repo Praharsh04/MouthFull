@@ -41,6 +41,8 @@ dependencies = [
     "loguru>=0.7.2",
     "httpx>=0.25.0",
     "pyperclip>=1.8.2",
+    "pywin32>=306",
+    "psutil>=5.9.0",
 ]
 
 [project.optional-dependencies]

@@ -51,6 +51,7 @@ class SettingsWindow:
         self._build_general_tab()
         self._build_speech_llm_tab()
         self._build_prompts_tab()
+        self._build_orb_tab()
         self._build_advanced_tab()
 
         # Bottom bar
@@ -290,6 +291,36 @@ class SettingsWindow:
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to export: {e}")
 
+    def _build_orb_tab(self) -> None:
+        frame = ttk.Frame(self._notebook, padding=20)
+        self._notebook.add(frame, text="Orb & UX")
+        
+        ttk.Label(frame, text="AI Orb Configuration", style="Header.TLabel").grid(row=0, column=0, sticky=tk.W, pady=(0, 15), columnspan=2)
+        
+        self._show_orb_var = tk.BooleanVar(value=self._config.ui.show_orb)
+        ttk.Checkbutton(frame, text="Enable Floating Orb", variable=self._show_orb_var).grid(row=1, column=0, sticky=tk.W, pady=2, columnspan=2)
+        
+        self._show_icon_var = tk.BooleanVar(value=self._config.ui.show_app_icon)
+        ttk.Checkbutton(frame, text="Show Active Application Icon", variable=self._show_icon_var).grid(row=2, column=0, sticky=tk.W, pady=2, columnspan=2)
+        
+        self._voice_anim_var = tk.BooleanVar(value=self._config.ui.voice_animations)
+        ttk.Checkbutton(frame, text="Voice Reactive Animations", variable=self._voice_anim_var).grid(row=3, column=0, sticky=tk.W, pady=2, columnspan=2)
+        
+        self._always_on_top_var = tk.BooleanVar(value=self._config.ui.always_on_top)
+        ttk.Checkbutton(frame, text="Always on Top", variable=self._always_on_top_var).grid(row=4, column=0, sticky=tk.W, pady=2, columnspan=2)
+        
+        ttk.Label(frame, text="Transparency:").grid(row=5, column=0, sticky=tk.W, pady=(10, 2))
+        self._orb_alpha_var = tk.DoubleVar(value=self._config.ui.orb_transparency)
+        ttk.Spinbox(frame, textvariable=self._orb_alpha_var, from_=0.1, to=1.0, increment=0.1, width=10).grid(row=5, column=1, sticky=tk.W, padx=10, pady=(10, 2))
+        
+        ttk.Label(frame, text="Animation Intensity:").grid(row=6, column=0, sticky=tk.W, pady=2)
+        self._orb_intensity_var = tk.DoubleVar(value=self._config.ui.animation_intensity)
+        ttk.Spinbox(frame, textvariable=self._orb_intensity_var, from_=0.1, to=3.0, increment=0.1, width=10).grid(row=6, column=1, sticky=tk.W, padx=10)
+        
+        ttk.Label(frame, text="Orb Size (px):").grid(row=7, column=0, sticky=tk.W, pady=2)
+        self._orb_size_var = tk.IntVar(value=self._config.ui.orb_size)
+        ttk.Spinbox(frame, textvariable=self._orb_size_var, from_=40, to=200, increment=10, width=10).grid(row=7, column=1, sticky=tk.W, padx=10)
+
     def _build_advanced_tab(self) -> None:
         frame = ttk.Frame(self._notebook, padding=20)
         self._notebook.add(frame, text="Advanced")
@@ -388,6 +419,13 @@ class SettingsWindow:
         # UI
         content = _upsert(content, "ui", "startup_on_windows", str(self._startup_var.get()).lower())
         content = _upsert(content, "ui", "theme", self._theme_var.get(), True)
+        content = _upsert(content, "ui", "show_orb", str(self._show_orb_var.get()).lower())
+        content = _upsert(content, "ui", "show_app_icon", str(self._show_icon_var.get()).lower())
+        content = _upsert(content, "ui", "voice_animations", str(self._voice_anim_var.get()).lower())
+        content = _upsert(content, "ui", "always_on_top", str(self._always_on_top_var.get()).lower())
+        content = _upsert(content, "ui", "orb_transparency", str(self._orb_alpha_var.get()))
+        content = _upsert(content, "ui", "animation_intensity", str(self._orb_intensity_var.get()))
+        content = _upsert(content, "ui", "orb_size", str(self._orb_size_var.get()))
 
         config_path.write_text(content, encoding="utf-8")
 

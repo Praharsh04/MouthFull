@@ -104,12 +104,24 @@ class InjectionConfig(BaseModel):
 
 
 class UIConfig(BaseModel):
-    """System-tray UI settings."""
+    """User interface settings."""
 
-    show_tray: bool = True
-    show_notifications: bool = True
-    theme: Literal["light", "dark", "system"] = "system"
+    theme: Literal["system", "light", "dark"] = "system"
     startup_on_windows: bool = False
+    show_notifications: bool = True
+
+    # Orb Settings
+    show_orb: bool = True
+    show_app_icon: bool = True
+    voice_animations: bool = True
+    orb_transparency: float = Field(default=0.9, ge=0.1, le=1.0)
+    animation_intensity: float = Field(default=1.0, ge=0.1, le=3.0)
+    always_on_top: bool = True
+    orb_size: int = Field(default=80, ge=40, le=200)
+    
+    # Position on screen (None means near cursor)
+    orb_pos_x: Optional[int] = None
+    orb_pos_y: Optional[int] = None
 
 
 class LoggingConfig(BaseModel):
