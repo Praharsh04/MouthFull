@@ -414,7 +414,7 @@ class UIBridge(QObject):
             
             # Mask API keys if they exist
             key_name = f"{p['id']}_api_key"
-            if getattr(self.app._api_keys, key_name, None):
+            if getattr(api_keys, key_name, None):
                 p_dict["key_set"] = True
 
             providers_state.append(p_dict)
