@@ -93,7 +93,7 @@ class HotkeyConfig(BaseModel):
     """Global hotkey settings."""
 
     combination: str = "ctrl+space"
-    mode: Literal["push_to_talk", "toggle"] = "push_to_talk"
+    mode: Literal["push_to_talk", "toggle"] = "toggle"
 
 
 class InjectionConfig(BaseModel):
@@ -185,7 +185,7 @@ def load_config(path: str | Path | None = None) -> AppConfig:
 
     if not config_path.exists():
         # Create a default configuration if it doesn't exist in AppData
-        config_path.write_text("audio:\n  device_index: null\nstt:\n  engine: parakeet\nllm:\n  enabled: true\n  provider: ollama\nhotkey:\n  combination: ctrl+space\ninjection:\n  method: clipboard\nui:\n  theme: system\n")
+        config_path.write_text("audio:\n  device_index: null\nstt:\n  engine: parakeet\nllm:\n  enabled: true\n  provider: ollama\nhotkey:\n  combination: ctrl+space\n  mode: toggle\ninjection:\n  method: clipboard\nui:\n  theme: system\n")
         
     try:
         raw = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}

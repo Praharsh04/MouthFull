@@ -46,11 +46,17 @@ class HotkeyListener:
 
     def _on_activate(self) -> None:
         """Called by pynput when the exact combination is pressed."""
-        if not self._active:
-            self._active = True
-            logger.debug("Hotkey activated.")
-            # Dispatch to asyncio loop
-            asyncio.run_coroutine_threadsafe(self._bus.emit(HotkeyPressed()), self._loop)
+        if self._config.mode == "toggle":
+            if not getattr(self, "_is_recording", False):
+                self._is_recording = True
+                logger.debug("Hotkey activated (Toggle ON).")
+                asyncio.run_coroutine_threadsafe(self._bus.emit(HotkeyPressed()), self._loop)
+            # If already recording, we do nothing. They must press Enter to stop.
+        else:
+            if not self._active:
+                self._active = True
+                logger.debug("Hotkey activated (PTT ON).")
+                asyncio.run_coroutine_threadsafe(self._bus.emit(HotkeyPressed()), self._loop)
 
     def _on_press(self, key: keyboard.Key | keyboard.KeyCode | None) -> None:
         if key is None:
@@ -62,6 +68,14 @@ class HotkeyListener:
             from voiceflow.core.events import PipelineAbort, StatusChanged
             asyncio.run_coroutine_threadsafe(self._bus.emit(PipelineAbort()), self._loop)
             asyncio.run_coroutine_threadsafe(self._bus.emit(StatusChanged(status="idle")), self._loop)
+            if hasattr(self, "_is_recording"): self._is_recording = False
+            return
+            
+        # If in toggle mode and recording, Enter stops it
+        if self._config.mode == "toggle" and getattr(self, "_is_recording", False) and key == keyboard.Key.enter:
+            logger.info("Enter pressed. Stopping toggle recording.")
+            self._is_recording = False
+            asyncio.run_coroutine_threadsafe(self._bus.emit(HotkeyReleased()), self._loop)
             return
 
         key = self._listener.canonical(key) if self._listener else key
@@ -77,26 +91,13 @@ class HotkeyListener:
 
         self._hotkey_tracker.release(key)
 
-        # If we were active and now we aren't holding all the keys
-        if self._active:
-            # Check if any key from the combination is released
-            # Since pynput HotKey doesn't give a deactivate callback, we manually check
+        # Handle Push-to-Talk release
+        if self._config.mode == "push_to_talk" and self._active:
             still_pressed = all(k in self._pressed_keys for k in self._hotkey_keys)
             if not still_pressed:
                 self._active = False
-                logger.debug("Hotkey deactivated.")
-
-                # In toggle mode, we only emit HotkeyReleased if it was a second press.
-                # Actually, in toggle mode, HotkeyPressed handles starting/stopping.
-                # But for push_to_talk, release stops.
-                if self._config.mode == "push_to_talk":
-                    asyncio.run_coroutine_threadsafe(self._bus.emit(HotkeyReleased()), self._loop)
-                else:
-                    # For toggle mode, HotkeyReleased is not emitted on physical key release,
-                    # we would emit HotkeyReleased on the *next* activate.
-                    # We will handle toggle logic in the app orchestrator or here.
-                    # Let's just emit HotkeyReleased if we are in push_to_talk mode.
-                    pass
+                logger.debug("Hotkey deactivated (PTT OFF).")
+                asyncio.run_coroutine_threadsafe(self._bus.emit(HotkeyReleased()), self._loop)
 
     async def start(self) -> None:
         """Start listening for the global hotkey."""
