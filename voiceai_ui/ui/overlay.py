@@ -22,7 +22,7 @@ Methods (backend -> UI):
 """
 from PySide6.QtCore import Qt, QTimer, Signal, QPoint, QPropertyAnimation, QEasingCurve, Property
 from PySide6.QtGui import QPainter, QColor, QRadialGradient, QFont
-from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QGraphicsOpacityEffect
+from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout
 
 from ui.theme import Colors
 
@@ -96,9 +96,7 @@ class AIOrb(QWidget):
         self._reposition_bubble()
 
         # Fade-in on creation
-        self._opacity_effect = QGraphicsOpacityEffect(self)
-        self.setGraphicsEffect(self._opacity_effect)
-        self._fade = QPropertyAnimation(self._opacity_effect, b"opacity", self)
+        self._fade = QPropertyAnimation(self, b"windowOpacity")
         self._fade.setDuration(220)
         self._fade.setStartValue(0.0)
         self._fade.setEndValue(1.0)
@@ -129,7 +127,7 @@ class AIOrb(QWidget):
     def set_visible(self, visible: bool):
         self.setVisible(visible)
         if visible:
-            self._opacity_effect.setOpacity(0.0)
+            self.setWindowOpacity(0.0)
             self._fade.start()
 
     def snap_to_corner(self, screen_geo, corner: str = "bottom-right", margin: int = 24):

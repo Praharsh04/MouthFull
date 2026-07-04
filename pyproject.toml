@@ -1,6 +1,6 @@
 [build-system]
 requires = ["setuptools>=68.0", "setuptools-scm>=8.0"]
-build-backend = "setuptools.backends._legacy:_Backend"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "voiceflow-local"
@@ -17,7 +17,7 @@ classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Win32 (MS Windows)",
     "Intended Audience :: End Users/Desktop",
-    "License :: OSI Approved :: MIT License",
+
     "Operating System :: Microsoft :: Windows",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
@@ -31,12 +31,13 @@ dependencies = [
     "numpy>=1.24.0",
     "onnxruntime>=1.16.0",
     "faster-whisper>=1.0.0",
-    "llama-cpp-python>=0.2.50",
+
     "pynput>=1.7.6",
-    "pystray>=0.19.5",
+    "PySide6>=6.6.0",
     "Pillow>=10.0.0",
     "pydantic>=2.5.0",
     "pydantic-settings>=2.1.0",
+    "python-dotenv>=1.0.0",
     "pyyaml>=6.0.1",
     "loguru>=0.7.2",
     "httpx>=0.25.0",
@@ -44,6 +45,7 @@ dependencies = [
     "pywin32>=306",
     "psutil>=5.9.0",
     "webrtcvad-wheels>=2.0.10.dev0",
+    "qtawesome>=1.3.1",
 ]
 
 [project.optional-dependencies]
@@ -53,6 +55,7 @@ dev = [
     "pytest-cov>=4.1.0",
     "ruff>=0.1.0",
     "mypy>=1.7.0",
+    "pyinstaller>=6.3.0",
 ]
 
 [project.scripts]

@@ -21,9 +21,21 @@ from pydantic import BaseModel, Field, field_validator
 
 from voiceflow.core.exceptions import ConfigError
 
+def get_appdata_dir() -> Path:
+    """Get the standard Windows AppData path for VoiceFlow."""
+    import os
+    appdata = os.environ.get('APPDATA', '')
+    if not appdata:
+        appdata = str(Path.home() / 'AppData' / 'Roaming')
+    
+    path = Path(appdata) / 'VoiceFlowLocal'
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
 # ---------------------------------------------------------------------------
 # Section models
 # ---------------------------------------------------------------------------
+
 
 
 class AudioConfig(BaseModel):
@@ -33,6 +45,8 @@ class AudioConfig(BaseModel):
     sample_rate: int = Field(default=16_000, ge=8_000, le=48_000)
     channels: int = Field(default=1, ge=1, le=2)
     chunk_size: int = Field(default=1024, ge=256, le=8192)
+    input_gain: int = Field(default=70, ge=0, le=100)
+    noise_suppression: bool = True
     save_audio: bool = False  # Debugging: save raw audio to disk
 
 
@@ -68,7 +82,7 @@ class APIKeys(BaseSettings):
     openrouter_api_key: Optional[str] = None
     custom_api_key: Optional[str] = None
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(env_file=str(get_appdata_dir() / ".env"), env_file_encoding="utf-8", extra="ignore")
 
 
 class LLMConfig(BaseModel):
@@ -108,6 +122,8 @@ class UIConfig(BaseModel):
 
     theme: Literal["system", "light", "dark"] = "system"
     startup_on_windows: bool = False
+    minimize_to_tray: bool = True
+    auto_check_updates: bool = True
     show_notifications: bool = True
     show_tray: bool = True
     first_run: bool = True
@@ -133,6 +149,7 @@ class LoggingConfig(BaseModel):
     log_file: str | None = "logs/voiceflow.log"
     rotation: str = "10 MB"
     retention: int = 3
+    send_telemetry: bool = False
 
     @field_validator("level")
     @classmethod
@@ -166,17 +183,6 @@ class AppConfig(BaseModel):
 # Loader
 # ---------------------------------------------------------------------------
 
-def get_appdata_dir() -> Path:
-    """Get the standard Windows AppData path for VoiceFlow."""
-    import os
-    appdata = os.environ.get('APPDATA', '')
-    if not appdata:
-        appdata = str(Path.home() / 'AppData' / 'Roaming')
-    
-    path = Path(appdata) / 'VoiceFlowLocal'
-    path.mkdir(parents=True, exist_ok=True)
-    return path
-
 def get_default_config_path() -> Path:
     return get_appdata_dir() / "config.yaml"
 
@@ -185,7 +191,7 @@ def load_config(path: str | Path | None = None) -> AppConfig:
 
     if not config_path.exists():
         # Create a default configuration if it doesn't exist in AppData
-        config_path.write_text("audio:\n  device_index: null\nstt:\n  engine: parakeet\nllm:\n  enabled: true\n  provider: ollama\nhotkey:\n  combination: ctrl+space\n  mode: toggle\ninjection:\n  method: clipboard\nui:\n  theme: system\n")
+        config_path.write_text("audio:\n  device_index: null\nstt:\n  engine: faster_whisper\n  model_size: tiny.en\nllm:\n  enabled: true\n  provider: ollama\nhotkey:\n  combination: ctrl+space\n  mode: toggle\ninjection:\n  method: clipboard\nui:\n  theme: system\n")
         
     try:
         raw = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
@@ -200,3 +206,13 @@ def load_config(path: str | Path | None = None) -> AppConfig:
         return config
     except Exception as exc:
         raise ConfigError(f"Configuration validation failed: {exc}") from exc
+
+
+def save_config(config: AppConfig, path: str | Path | None = None) -> None:
+    """Save the configuration back to disk."""
+    config_path = Path(path) if path else get_default_config_path()
+    try:
+        raw = config.model_dump()
+        config_path.write_text(yaml.safe_dump(raw, sort_keys=False), encoding="utf-8")
+    except Exception as exc:
+        raise ConfigError(f"Failed to save configuration: {exc}") from exc

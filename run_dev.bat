@@ -1,0 +1,3 @@
+@echo off
+echo Starting VoiceFlow Local in development mode...
+python -m voiceflow

@@ -12,18 +12,23 @@ from pathlib import Path
 
 import yaml
 
+from voiceflow.core.config import get_appdata_dir
+
 BUILTIN_TEMPLATES: dict[str, str] = {
-    "default": "You are a dictation assistant. Fix grammar, spelling, punctuation, and remove filler words (um, uh). Output ONLY the corrected text.\n\nDictated text: {raw_text}",
-    "formal": "You are a professional writing assistant. Rewrite the following dictated text in a formal, professional tone. Output ONLY the corrected text.\n\nDictated text: {raw_text}",
-    "code_comment": "You are a software documentation assistant. Rewrite as a clear, concise technical comment. Output ONLY the comment text.\n\nDictated text: {raw_text}",
-    "email": "You are an email writing assistant. Format it properly with appropriate greeting. Output ONLY the corrected text.\n\nDictated text: {raw_text}",
+    "default": "You are a dictation assistant. Fix grammar, spelling, punctuation, and remove filler words (um, uh). Output ONLY the corrected text.",
+    "formal": "You are a professional writing assistant. Rewrite the following dictated text in a formal, professional tone. Output ONLY the corrected text.",
+    "code_comment": "You are a software documentation assistant. Rewrite as a clear, concise technical comment. Output ONLY the comment text.",
+    "email": "You are an email writing assistant. Format it properly with appropriate greeting. Output ONLY the corrected text.",
 }
 
 class PromptManager:
     """Manages prompt templates and persistence."""
 
-    def __init__(self, path: str = "prompts.yaml"):
-        self.path = Path(path)
+    def __init__(self, path: str | Path | None = None):
+        if path is None:
+            self.path = get_appdata_dir() / "prompts.yaml"
+        else:
+            self.path = Path(path)
         self.templates = BUILTIN_TEMPLATES.copy()
         self.load()
 
@@ -58,9 +63,3 @@ manager = PromptManager()
 
 def get_template(name: str) -> str:
     return manager.get_template(name)
-
-def render_prompt(template_name: str, raw_text: str) -> str:
-    template = get_template(template_name)
-    if "{raw_text}" not in template:
-        template += "\n\n{raw_text}"
-    return template.format(raw_text=raw_text)

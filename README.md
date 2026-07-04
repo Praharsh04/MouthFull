@@ -13,28 +13,74 @@ VoiceFlow Local allows you to dictate text using your microphone and have it int
 - **Modern UI**: Lightweight system tray integration and a beautiful floating status overlay.
 - **Custom Prompts**: Manage and switch between custom prompt templates easily.
 
-## Installation
+---
 
-### Pre-built Windows Executable
-*(Coming Soon - Check Releases)*
+## Installation Guide
 
-### From Source
-1. Clone the repository: `git clone https://github.com/Praharsh04/Vociflow.git`
+### Option 1: Installer (Recommended)
+1. Go to the [Releases](../../releases) page.
+2. Download `VoiceFlow_Local_Setup.exe`.
+3. Run the installer and follow the instructions.
+4. Launch VoiceFlow Local from the Start Menu or Desktop shortcut.
+
+### Option 2: Portable ZIP
+1. Go to the [Releases](../../releases) page.
+2. Download `VoiceFlow_Local_Portable.zip`.
+3. Extract the ZIP to your desired location.
+4. Run `VoiceFlow.exe`.
+
+### Option 3: From Source (Developers)
+1. Clone the repository: `git clone https://github.com/voiceflow/voiceflow-local.git`
 2. Install Python 3.10+
-3. Install dependencies: `pip install -e .`
-4. Run the app: `python -m voiceflow`
+3. Install dependencies: `pip install -r requirements.txt`
+4. Run the app: `python -m voiceflow` (or double click `run_dev.bat`)
 
-## Configuration
+---
 
-On first run, VoiceFlow Local will open a Setup Wizard to help you select your STT engine and LLM provider. Settings are saved locally to `config.yaml` and `.env` (for API keys).
+## Development Guide
 
-## Usage
+### Setting up the Environment
+1. Clone the repository.
+2. Open a terminal and run `pip install -r requirements.txt` to install all dependencies.
+3. To run the app during development, you can use `run_dev.bat` or `python -m voiceflow`.
 
-1. Start the application. It will run quietly in the system tray.
-2. Focus on any text field in any application.
-3. Hold `Ctrl+Space` (or your configured hotkey), speak your thought naturally, and release.
-4. The floating overlay will indicate "Processing..." then "Refining...".
-5. The final, beautifully formatted text will instantly appear in your active text field!
+### Building the Project
+We use PyInstaller to bundle the application into a standalone Windows executable.
+- Run `build.bat` or `build.ps1` to create the `dist/Release/VoiceFlow` directory.
+- To create the installer, install [Inno Setup](https://jrsoftware.org/isinfo.php) and compile `installer.iss`.
+
+### Clean Up
+- Run `clean.bat` to remove the `build` and `dist` directories.
+
+---
+
+## Architecture Overview
+
+VoiceFlow Local is built with a decoupled architecture for maximum stability and responsiveness:
+
+1. **Frontend (UI)**: Built with PySide6 (Qt). Manages the System Tray, Settings Window, Models/LLM Configuration Pages, and the floating AI Orb.
+2. **Backend (Services)**:
+   - **Audio Capture**: Uses `sounddevice` to stream raw audio.
+   - **VAD (Voice Activity Detection)**: Monitors microphone levels and segments speech.
+   - **STT (Speech-to-Text)**: Translates audio into raw text using `faster-whisper`.
+   - **LLM Refinement**: Refines the raw text using local (Ollama) or remote APIs.
+   - **Injector**: Uses `pynput` and `pyperclip` to inject the final text into the active window.
+3. **EventBus**: The frontend and backend communicate purely via an asynchronous `EventBus` (`voiceflow.core.events`). This ensures UI operations never block backend processing and vice-versa.
+
+---
+
+## Contributing Guide
+
+We welcome contributions! 
+1. Fork the repository.
+2. Create a new branch (`git checkout -b feature/awesome-feature`).
+3. Make your changes.
+4. Test your changes locally.
+5. Create a Pull Request against the `main` branch.
+
+Please ensure your code conforms to the existing style and architecture. The project uses `ruff` for linting.
+
+---
 
 ## License
 

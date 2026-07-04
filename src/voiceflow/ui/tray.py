@@ -1,149 +1,147 @@
-"""System tray icon and menu using pystray.
-
-Responsibilities:
-- Display a tray icon with state-based colours (idle, recording, processing, error).
-- Provide a context menu with common actions.
-- Show Windows toast notifications for status changes.
 """
+tray.py — System Tray
+----------------------
+EarTrumpet/PowerToys-style tray icon with a quick-access menu: current
+status, start/stop toggle, quick actions, and links into the main window's
+pages.
 
-from __future__ import annotations
+Backend integration
+---------------------
+Signals (UI -> backend):
+    tray.start_stop_toggled(bool)      # True = start listening/service
+    tray.open_dashboard_requested()
+    tray.open_settings_requested()
+    tray.quit_requested()
+    tray.quick_action_triggered(str)   # e.g. "mute_mic", "push_to_talk"
 
-import asyncio
-import threading
-from typing import TYPE_CHECKING
+Methods (backend -> UI):
+    tray.update_status("listening" | "idle" | "processing" | "error" | "offline")
+    tray.show_message(title, message, kind)   # native OS balloon/toast
+"""
+from PySide6.QtCore import Signal, QObject
+from PySide6.QtGui import QIcon, QPixmap, QPainter, QColor, QAction
+from PySide6.QtWidgets import QSystemTrayIcon, QMenu
 
-import pystray
-from PIL import Image, ImageDraw
-from pystray import MenuItem as item
+from voiceflow.ui.theme import Colors
 
-from voiceflow.core.events import NotificationEvent, StatusChanged
-from voiceflow.core.logger import logger
-from voiceflow.ui.settings import SettingsWindow
+STATUS_TEXT = {
+    "listening": "Listening…",
+    "idle": "Idle",
+    "processing": "Processing…",
+    "error": "Error",
+    "offline": "Backend Disconnected",
+}
 
-if TYPE_CHECKING:
-    from voiceflow.core.config import AppConfig
-    from voiceflow.core.events import EventBus
+STATUS_COLOR = {
+    "listening": Colors.ORB_LISTENING,
+    "idle": Colors.ORB_IDLE,
+    "processing": Colors.ORB_PROCESSING,
+    "error": Colors.ORB_ERROR,
+    "offline": Colors.TEXT_MUTED,
+}
 
 
-class SystemTray:
-    """System tray icon manager."""
+def _make_dot_icon(color_hex: str, size: int = 64) -> QIcon:
+    """Generates a simple colored-circle tray icon (placeholder for a real .ico asset)."""
+    pixmap = QPixmap(size, size)
+    pixmap.fill(QColor(0, 0, 0, 0))
+    painter = QPainter(pixmap)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    painter.setPen(QColor(0, 0, 0, 0))
+    painter.setBrush(QColor(color_hex))
+    margin = size * 0.12
+    painter.drawEllipse(int(margin), int(margin), int(size - 2 * margin), int(size - 2 * margin))
+    painter.end()
+    return QIcon(pixmap)
 
-    def __init__(self, config: AppConfig, event_bus: EventBus) -> None:
-        self._config = config
-        self._bus = event_bus
-        self._icon: pystray.Icon | None = None
-        self._thread: threading.Thread | None = None
-        self._loop = asyncio.get_running_loop()
-        self._settings_win = None
 
-    def _create_menu(self) -> pystray.Menu:
-        """Create the context menu."""
-        from pystray import MenuItem
-        return pystray.Menu(
-            MenuItem("Open Dashboard", self._on_dashboard_clicked, default=True),
-            MenuItem("Settings", self._on_settings_clicked),
-            MenuItem("Restart Backend", self._on_restart_clicked),
-            MenuItem("View Logs", self._on_logs_clicked),
-            MenuItem("Exit", self._on_quit_clicked)
-        )
+class TrayIcon(QObject):
+    start_stop_toggled = Signal(bool)
+    open_dashboard_requested = Signal()
+    open_settings_requested = Signal()
+    quit_requested = Signal()
+    quick_action_triggered = Signal(str)
 
-    def _on_dashboard_clicked(self, icon: pystray.Icon, item: pystray.MenuItem) -> None:
-        """Handle Dashboard click."""
-        from voiceflow.ui.dashboard import DashboardWindow
-        if not hasattr(self, '_dashboard_win') or not self._dashboard_win:
-            self._dashboard_win = DashboardWindow(self._config, self._bus)
-        self._dashboard_win.show()
+    def __init__(self, app):
+        super().__init__()
+        self._app = app
+        self._is_running = False
+        self._status = "idle"
 
-    def _on_settings_clicked(self, icon: pystray.Icon, item: pystray.MenuItem) -> None:
-        """Handle Settings click."""
-        from voiceflow.ui.settings import SettingsWindow
-        if not self._settings_win:
-            self._settings_win = SettingsWindow(self._config)
-        self._settings_win.show()
+        self.icon = QSystemTrayIcon()
+        self.icon.setIcon(_make_dot_icon(STATUS_COLOR["idle"]))
+        self.icon.setToolTip("VoiceFlow AI — Idle")
 
-    def _on_restart_clicked(self, icon: pystray.Icon, item: pystray.MenuItem) -> None:
-        """Handle Restart Backend click."""
-        logger.info("Restarting backend...")
-        # Since components listen to config changes, we might emit a restart event
-        # For now, log it. Full restart logic will be implemented.
-        pass
+        self.menu = QMenu()
+        self._build_menu()
+        self.icon.setContextMenu(self.menu)
 
-    def _on_logs_clicked(self, icon: pystray.Icon, item: pystray.MenuItem) -> None:
-        """Handle View Logs click."""
-        import os
-        log_path = "logs/voiceflow.log"
-        if os.path.exists(log_path):
-            os.startfile(log_path)
-            
-    def _on_quit_clicked(self, icon: pystray.Icon, item: pystray.MenuItem) -> None:
-        """Quit the application."""
-        logger.info("Quit selected from tray.")
-        icon.stop()
-        import os
-        import signal
-        os.kill(os.getpid(), signal.SIGTERM)
+        self.icon.activated.connect(self._on_activated)
 
-    def _create_image(self, color: str) -> Image.Image:
-        """Create a simple circle icon of a given color."""
-        image = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
-        dc = ImageDraw.Draw(image)
-        dc.ellipse((8, 8, 56, 56), fill=color)
-        return image
+    def _build_menu(self):
+        self.status_action = QAction("● Idle")
+        self.status_action.setEnabled(False)
+        self.menu.addAction(self.status_action)
+        self.menu.addSeparator()
 
-    def _run_tray(self) -> None:
-        self._icon = pystray.Icon(
-            "voiceflow",
-            self._create_image("gray"),
-            "VoiceFlow Local",
-            menu=self._create_menu()
-        )
-        self._icon.run()
+        self.toggle_action = QAction("Start Listening")
+        self.toggle_action.triggered.connect(self._on_toggle)
+        self.menu.addAction(self.toggle_action)
 
-    async def start(self) -> None:
-        """Create the tray icon and start listening for events."""
-        if not self._config.ui.show_tray:
-            return
+        mute_action = QAction("Mute Microphone")
+        mute_action.setCheckable(True)
+        mute_action.triggered.connect(lambda checked: self.quick_action_triggered.emit("mute_mic"))
+        self.menu.addAction(mute_action)
+        self.mute_action = mute_action
 
-        self._thread = threading.Thread(target=self._run_tray, daemon=True)
-        self._thread.start()
+        self.menu.addSeparator()
 
-        # Wait a moment for icon to initialize
-        await asyncio.sleep(0.2)
+        dash_action = QAction("Open Dashboard")
+        dash_action.triggered.connect(self.open_dashboard_requested.emit)
+        self.menu.addAction(dash_action)
 
-        self._bus.subscribe(StatusChanged, self._on_status_changed)
-        self._bus.subscribe(NotificationEvent, self._on_notification)
-        logger.info("SystemTray started.")
+        settings_action = QAction("Settings")
+        settings_action.triggered.connect(self.open_settings_requested.emit)
+        self.menu.addAction(settings_action)
 
-    async def stop(self) -> None:
-        """Remove the tray icon."""
-        self._bus.unsubscribe(StatusChanged, self._on_status_changed)
-        self._bus.unsubscribe(NotificationEvent, self._on_notification)
-        if self._icon is not None:
-            self._icon.stop()
-        if self._thread is not None:
-            self._thread.join(timeout=1.0)
-        logger.info("SystemTray stopped.")
+        self.menu.addSeparator()
 
-    async def _on_status_changed(self, event: StatusChanged) -> None:
-        """Update tray icon color based on status."""
-        if self._icon is None:
-            return
+        quit_action = QAction("Quit VoiceFlow AI")
+        quit_action.triggered.connect(self.quit_requested.emit)
+        self.menu.addAction(quit_action)
 
-        color_map = {
-            "idle": "gray",
-            "recording": "red",
-            "processing": "blue",
-            "refining": "blue",
-            "done": "green",
-            "error": "orange",
+    def _on_toggle(self):
+        self._is_running = not self._is_running
+        self.toggle_action.setText("Stop Listening" if self._is_running else "Start Listening")
+        self.start_stop_toggled.emit(self._is_running)
+
+    def _on_activated(self, reason):
+        if reason == QSystemTrayIcon.ActivationReason.DoubleClick:
+            self.open_dashboard_requested.emit()
+
+    # ---------------------------------------------------------------- backend API
+    def update_status(self, status: str):
+        """Backend -> UI: listening | idle | processing | error | offline"""
+        if status not in STATUS_TEXT:
+            status = "idle"
+        self._status = status
+        self.icon.setIcon(_make_dot_icon(STATUS_COLOR[status]))
+        self.icon.setToolTip(f"VoiceFlow AI — {STATUS_TEXT[status]}")
+        self.status_action.setText(f"● {STATUS_TEXT[status]}")
+
+    def set_running_silent(self, running: bool):
+        """Reflect backend-driven start/stop state without re-emitting toggle signal."""
+        self._is_running = running
+        self.toggle_action.setText("Stop Listening" if running else "Start Listening")
+
+    def show_message(self, title: str, message: str, kind: str = "info"):
+        icon_map = {
+            "info": QSystemTrayIcon.MessageIcon.Information,
+            "warning": QSystemTrayIcon.MessageIcon.Warning,
+            "error": QSystemTrayIcon.MessageIcon.Critical,
+            "success": QSystemTrayIcon.MessageIcon.Information,
         }
-        color = color_map.get(event.status, "gray")
-        self._icon.icon = self._create_image(color)
+        self.icon.showMessage(title, message, icon_map.get(kind, QSystemTrayIcon.MessageIcon.Information), 4000)
 
-    async def _on_notification(self, event: NotificationEvent) -> None:
-        """Show an OS toast notification."""
-        if self._icon is not None and getattr(self._icon, "HAS_NOTIFICATION", True) and self._config.ui.show_notifications:
-            try:
-                self._icon.notify(event.message, event.title)
-            except Exception as e:
-                logger.warning(f"Failed to show notification: {e}")
+    def show(self):
+        self.icon.show()

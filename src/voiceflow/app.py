@@ -29,11 +29,14 @@ class VoiceFlowApp:
     Manages the full lifecycle: init → run → shutdown.
     """
 
-    def __init__(self, config_path: str | Path | None = None) -> None:
-        self._config = load_config(config_path)
+    def __init__(self, config_path: str | Path | None = None, config=None) -> None:
+        self._config = config if config else load_config(config_path)
         setup_logging(self._config)
         self._bus = EventBus()
         self._running = False
+        
+        from voiceflow.core.perf import PerformanceCollector
+        self._perf = PerformanceCollector(self._bus)
 
         logger.info("{} v{} initialising", __app_name__, __version__)
 
@@ -55,7 +58,6 @@ class VoiceFlowApp:
         from voiceflow.input.hotkey import HotkeyListener
         from voiceflow.llm.service import LLMService
         from voiceflow.stt.service import STTService
-        from voiceflow.ui import FloatingOverlay, SystemTray
 
         self._hotkey = HotkeyListener(self._config.hotkey, self._bus)
         self._capture = AudioCapture(self._config.audio, self._bus)
@@ -63,8 +65,6 @@ class VoiceFlowApp:
         self._stt = STTService(self._config.stt, self._bus)
         self._llm = LLMService(self._config.llm, self._bus)
         self._injector = TextInjector(self._config.injection, self._bus)
-        self._overlay = FloatingOverlay(self._config.ui, self._bus)
-        self._tray = SystemTray(self._config, self._bus)
 
         await self._hotkey.start()
         await self._capture.start()
@@ -72,8 +72,7 @@ class VoiceFlowApp:
         await self._stt.start()
         await self._llm.start()
         await self._injector.start()
-        await self._overlay.start()
-        await self._tray.start()
+        await self._perf.start()
 
         self._running = True
         logger.info("{} is ready — press your hotkey to dictate!", __app_name__)
@@ -91,14 +90,13 @@ class VoiceFlowApp:
 
         logger.info("Shutting down {}…", __app_name__)
 
-        await self._tray.stop()
-        await self._overlay.stop()
         await self._injector.stop()
         await self._llm.stop()
         await self._stt.stop()
         await self._vad.stop()
         await self._capture.stop()
         await self._hotkey.stop()
+        await self._perf.stop()
 
         self._running = False
         logger.info("{} stopped.", __app_name__)

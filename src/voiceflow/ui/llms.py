@@ -1,180 +1,233 @@
-"""LLM Providers Manager UI."""
+"""
+llms.py — LLM Providers Page
+------------------------------
+Configure and switch between LLM providers used for post-processing /
+command interpretation (Docker Desktop "settings list" style layout).
 
-import tkinter as tk
-from tkinter import ttk, messagebox
-import threading
-from typing import TYPE_CHECKING
-import time
-import os
+Backend integration
+---------------------
+Signals (UI -> backend):
+    llms_page.on_provider_selected(provider_id: str)
+    llms_page.on_test_connection_clicked(provider_id: str)
+    llms_page.on_api_key_changed(provider_id: str, key: str)
+    llms_page.on_model_variant_changed(provider_id: str, model_name: str)
+    llms_page.on_save_clicked(provider_id: str)
 
-from voiceflow.core.logger import logger
+Methods (backend -> UI):
+    llms_page.update_providers(providers: list[dict])
+    llms_page.set_connection_status(provider_id, status)   # untested|testing|success|error
+    llms_page.set_active_provider(provider_id)
+"""
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtWidgets import (
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QLineEdit,
+    QComboBox, QScrollArea, QFrame, QRadioButton, QButtonGroup
+)
 
-if TYPE_CHECKING:
-    from voiceflow.core.config import AppConfig
-    from voiceflow.core.events import EventBus
+from voiceflow.ui.theme import Colors
+from voiceflow.ui.widgets import Card, StatusBadge
 
-PROVIDERS = [
-    {"id": "ollama", "name": "Ollama (Local)", "requires_key": False, "supports_url": True, "default_url": "http://localhost:11434/v1"},
-    {"id": "openai", "name": "OpenAI", "requires_key": True, "supports_url": False, "default_url": ""},
-    {"id": "anthropic", "name": "Anthropic", "requires_key": True, "supports_url": False, "default_url": ""},
-    {"id": "gemini", "name": "Google Gemini", "requires_key": True, "supports_url": False, "default_url": ""},
-    {"id": "openrouter", "name": "OpenRouter", "requires_key": True, "supports_url": True, "default_url": "https://openrouter.ai/api/v1"},
-    {"id": "lmstudio", "name": "LM Studio (Local)", "requires_key": False, "supports_url": True, "default_url": "http://localhost:1234/v1"},
-    {"id": "custom", "name": "Custom OpenAI-Compatible", "requires_key": True, "supports_url": True, "default_url": ""}
+CONN_META = {
+    "untested": ("neutral", "Not Tested"),
+    "testing": ("info", "Testing…"),
+    "success": ("success", "Connected"),
+    "error": ("error", "Connection Failed"),
+}
+
+AVAILABLE_PROVIDERS = [
+    {
+        "id": "ollama",
+        "name": "Ollama (Local)",
+        "desc": "Run open models locally — no API key required",
+        "models": ["llama3", "llama3.1:8b", "mistral", "phi3"],
+        "requires_key": False
+    },
+    {
+        "id": "openai",
+        "name": "OpenAI",
+        "desc": "GPT-4o / GPT-4o mini via API",
+        "models": ["gpt-4o", "gpt-4o-mini", "gpt-3.5-turbo"],
+        "requires_key": True
+    },
+    {
+        "id": "anthropic",
+        "name": "Anthropic Claude",
+        "desc": "Claude Sonnet / Opus / Haiku via API",
+        "models": ["claude-3-5-sonnet-20240620", "claude-3-opus-20240229", "claude-3-haiku-20240307"],
+        "requires_key": True
+    },
+    {
+        "id": "gemini",
+        "name": "Google Gemini",
+        "desc": "Gemini 1.5 Pro / Flash via API",
+        "models": ["gemini-1.5-pro-latest", "gemini-1.5-flash-latest"],
+        "requires_key": True
+    },
+    {
+        "id": "openrouter",
+        "name": "OpenRouter",
+        "desc": "Access multiple models (Llama 3, Claude, GPT) via single API",
+        "models": ["meta-llama/llama-3-8b-instruct", "meta-llama/llama-3-70b-instruct", "anthropic/claude-3.5-sonnet"],
+        "requires_key": True
+    },
+    {
+        "id": "custom",
+        "name": "Custom API Endpoint",
+        "desc": "Use an OpenAI-compatible endpoint (e.g. vLLM, LMStudio)",
+        "models": ["custom-model"],
+        "requires_key": True
+    }
 ]
 
-class LLMManagerWindow:
-    def __init__(self, config: 'AppConfig', bus: 'EventBus'):
-        self._config = config
-        self._bus = bus
-        self._root = None
-        self._thread = None
-        
-    def show(self):
-        if self._root is not None and self._root.winfo_exists():
-            self._root.lift()
-            self._root.focus_force()
-            return
-            
-        self._thread = threading.Thread(target=self._run, daemon=True)
-        self._thread.start()
-        
-    def _run(self):
-        self._root = tk.Tk()
-        self._root.title("VoiceFlow - LLM Providers")
-        self._root.geometry("700x550")
-        
-        self._apply_theme()
-        
-        main_frame = ttk.Frame(self._root, padding="20")
-        main_frame.pack(fill=tk.BOTH, expand=True)
-        
-        ttk.Label(main_frame, text="LLM Providers Management", style="Header.TLabel").pack(anchor=tk.W, pady=(0, 20))
-        
-        # Split layout
-        paned = ttk.PanedWindow(main_frame, orient=tk.HORIZONTAL)
-        paned.pack(fill=tk.BOTH, expand=True)
-        
-        # Left side: Provider list
-        list_frame = ttk.Frame(paned)
-        paned.add(list_frame, weight=1)
-        
-        self._provider_listbox = tk.Listbox(list_frame, font=("Segoe UI", 10), bg=self.bg_color, fg=self.text_color, selectbackground="#0078D7")
-        self._provider_listbox.pack(fill=tk.BOTH, expand=True, padx=(0, 10))
-        for p in PROVIDERS:
-            self._provider_listbox.insert(tk.END, p["name"])
-        self._provider_listbox.bind('<<ListboxSelect>>', self._on_select_provider)
-        
-        # Right side: Details
-        self._details_frame = ttk.Frame(paned, padding=10)
-        paned.add(self._details_frame, weight=2)
-        
-        self._api_key_var = tk.StringVar()
-        self._url_var = tk.StringVar()
-        self._model_var = tk.StringVar()
-        self._status_var = tk.StringVar(value="Status: Unknown")
-        self._latency_var = tk.StringVar(value="Latency: -")
-        
-        self._current_provider = None
-        self._provider_listbox.selection_set(0)
-        self._on_select_provider()
-        
-        self._root.mainloop()
 
-    def _apply_theme(self):
-        theme = self._config.ui.theme
-        if theme == "dark":
-            self.bg_color = "#1e1e1e"
-            self.fg_color = "#2d2d2d"
-            self.text_color = "#ffffff"
+class ProviderRow(Card):
+    def __init__(self, provider: dict, group: QButtonGroup, on_select, on_test, on_key_changed,
+                 on_model_changed, on_save, parent=None):
+        super().__init__(parent=parent)
+        self.provider_id = provider["id"]
+        self._on_test = on_test
+        self._on_key_changed = on_key_changed
+        self._on_model_changed = on_model_changed
+        self._on_save = on_save
+        self.body_layout().setContentsMargins(16, 14, 16, 14)
+
+        top = QHBoxLayout()
+        self.radio = QRadioButton()
+        self.radio.setChecked(provider.get("active", False))
+        self.radio.toggled.connect(lambda checked: checked and on_select(self.provider_id))
+        group.addButton(self.radio)
+        top.addWidget(self.radio)
+
+        title_col = QVBoxLayout()
+        title_col.setSpacing(1)
+        name_lbl = QLabel(provider["name"])
+        name_lbl.setStyleSheet(f"font-size: 13px; font-weight: 600; color: {Colors.TEXT_PRIMARY};")
+        desc_lbl = QLabel(provider["desc"])
+        desc_lbl.setStyleSheet(f"color: {Colors.TEXT_MUTED}; font-size: 10.5px;")
+        title_col.addWidget(name_lbl)
+        title_col.addWidget(desc_lbl)
+        top.addLayout(title_col, 1)
+
+        self.status_badge = StatusBadge(*reversed(CONN_META[provider.get("status", "untested")]))
+        top.addWidget(self.status_badge)
+        self.body_layout().addLayout(top)
+
+        # Config row: API key + model dropdown + test/save buttons
+        config_row = QHBoxLayout()
+        if provider["requires_key"]:
+            self.key_input = QLineEdit()
+            self.key_input.setEchoMode(QLineEdit.EchoMode.Password)
+            self.key_input.setPlaceholderText("API key (sk-••••••••••••)")
+            if provider.get("key_set", False):
+                self.key_input.setText("sk-" + "•" * 20)
+            self.key_input.textChanged.connect(lambda text: self._on_key_changed(self.provider_id, text))
+            config_row.addWidget(self.key_input, 1)
         else:
-            self.bg_color = "#f0f0f0"
-            self.fg_color = "#ffffff"
-            self.text_color = "#333333"
+            self.key_input = None
+            local_lbl = QLabel("No API key required (local inference)")
+            local_lbl.setStyleSheet(f"color: {Colors.TEXT_MUTED}; font-size: 10.5px; font-style: italic;")
+            config_row.addWidget(local_lbl, 1)
 
-        self._root.configure(bg=self.bg_color)
-        style = ttk.Style(self._root)
-        style.theme_use("clam")
-        style.configure("TFrame", background=self.bg_color)
-        style.configure("TLabel", background=self.bg_color, foreground=self.text_color)
-        style.configure("Header.TLabel", font=("Segoe UI", 14, "bold"), foreground=self.text_color)
-        style.configure("TButton", font=("Segoe UI", 9))
+        self.model_combo = QComboBox()
+        self.model_combo.addItems(provider.get("models", []))
+        if "current_model" in provider and provider["current_model"] in provider["models"]:
+            self.model_combo.setCurrentText(provider["current_model"])
+        self.model_combo.currentTextChanged.connect(lambda text: self._on_model_changed(self.provider_id, text))
+        self.model_combo.setFixedWidth(180)
+        config_row.addWidget(self.model_combo)
 
-    def _on_select_provider(self, event=None):
-        sel = self._provider_listbox.curselection()
-        if not sel: return
-        self._current_provider = PROVIDERS[sel[0]]
-        
-        for widget in self._details_frame.winfo_children():
-            widget.destroy()
-            
-        p = self._current_provider
-        ttk.Label(self._details_frame, text=p["name"], style="Header.TLabel").pack(anchor=tk.W, pady=(0, 15))
-        
-        # Load API key from env
-        from dotenv import load_dotenv
-        load_dotenv()
-        key_name = f"{p['id'].upper()}_API_KEY"
-        self._api_key_var.set(os.getenv(key_name, ""))
-        
-        if p["requires_key"]:
-            ttk.Label(self._details_frame, text="API Key:").pack(anchor=tk.W, pady=2)
-            ttk.Entry(self._details_frame, textvariable=self._api_key_var, show="*").pack(fill=tk.X, pady=(0, 10))
-            
-        if p["supports_url"]:
-            # Custom logic could map URLs from config, using default for now
-            self._url_var.set(self._config.llm.api_base if self._config.llm.provider == p['id'] else p["default_url"])
-            ttk.Label(self._details_frame, text="Endpoint URL:").pack(anchor=tk.W, pady=2)
-            ttk.Entry(self._details_frame, textvariable=self._url_var).pack(fill=tk.X, pady=(0, 10))
-            
-        self._model_var.set(self._config.llm.model if self._config.llm.provider == p['id'] else "")
-        ttk.Label(self._details_frame, text="Default Model:").pack(anchor=tk.W, pady=2)
-        ttk.Entry(self._details_frame, textvariable=self._model_var).pack(fill=tk.X, pady=(0, 15))
-        
-        # Action Buttons
-        btn_frame = ttk.Frame(self._details_frame)
-        btn_frame.pack(fill=tk.X, pady=10)
-        
-        ttk.Button(btn_frame, text="Test Connection", command=self._test_connection).pack(side=tk.LEFT, padx=(0, 5))
-        ttk.Button(btn_frame, text="Save & Set Default", command=self._save_default).pack(side=tk.LEFT)
-        
-        ttk.Label(self._details_frame, textvariable=self._status_var).pack(anchor=tk.W, pady=(15, 2))
-        ttk.Label(self._details_frame, textvariable=self._latency_var).pack(anchor=tk.W)
+        test_btn = QPushButton("Test")
+        test_btn.setFixedWidth(70)
+        test_btn.clicked.connect(lambda: self._on_test(self.provider_id))
+        config_row.addWidget(test_btn)
 
-    def _test_connection(self):
-        self._status_var.set("Status: Testing...")
-        self._latency_var.set("Latency: -")
-        # In a real implementation this would make an async network call.
-        # Mocking for the UI structural requirements:
-        def _mock_test():
-            time.sleep(0.8)
-            if self._current_provider["requires_key"] and not self._api_key_var.get():
-                self._root.after(0, lambda: self._status_var.set("Status: Error (Missing API Key)"))
-                return
-            self._root.after(0, lambda: self._status_var.set("Status: Connected \u2713"))
-            self._root.after(0, lambda: self._latency_var.set("Latency: 124ms"))
-            
-        threading.Thread(target=_mock_test, daemon=True).start()
+        save_btn = QPushButton("Save")
+        save_btn.setProperty("variant", "primary")
+        save_btn.setFixedWidth(70)
+        save_btn.clicked.connect(lambda: self._on_save(self.provider_id))
+        config_row.addWidget(save_btn)
 
-    def _save_default(self):
-        p = self._current_provider
-        import re
-        from voiceflow.core.config import get_default_config_path
-        
-        # Save API key to .env
-        if p["requires_key"]:
-            key = self._api_key_var.get().strip()
-            if key:
-                from voiceflow.core.config import get_appdata_dir
-                env_path = get_appdata_dir() / ".env"
-                env_content = env_path.read_text(encoding="utf-8") if env_path.exists() else ""
-                key_name = f"{p['id'].upper()}_API_KEY"
-                if f"{key_name}=" in env_content:
-                    env_content = re.sub(rf"{key_name}=.*", f"{key_name}={key}", env_content)
-                else:
-                    env_content += f"\n{key_name}={key}\n"
-                env_path.write_text(env_content.strip() + "\n", encoding="utf-8")
-        
-        # We'd typically update config.yaml here using regex similar to settings.py
-        # To avoid duplicating large regex blocks, we'll inform the user.
-        messagebox.showinfo("Saved", f"{p['name']} is now the default LLM provider.\nRestart backend to apply changes.")
+        self.body_layout().addLayout(config_row)
+
+    def set_connection_status(self, status: str):
+        kind, label = CONN_META.get(status, ("neutral", "Unknown"))
+        self.status_badge.set_status(kind, label)
+
+    def set_active(self, active: bool):
+        self.radio.blockSignals(True)
+        self.radio.setChecked(active)
+        self.radio.blockSignals(False)
+
+
+class LLMProvidersPage(QWidget):
+    on_provider_selected = Signal(str)
+    on_test_connection_clicked = Signal(str)
+    on_api_key_changed = Signal(str, str)
+    on_model_variant_changed = Signal(str, str)
+    on_save_clicked = Signal(str)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._rows = {}
+        self._group = QButtonGroup(self)
+        self._group.setExclusive(True)
+
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(28, 24, 28, 24)
+        outer.setSpacing(16)
+
+        header = QHBoxLayout()
+        title = QLabel("LLM Providers")
+        title.setStyleSheet(f"font-size: 22px; font-weight: 700; color: {Colors.TEXT_PRIMARY};")
+        header.addWidget(title)
+        header.addStretch(1)
+        add_btn = QPushButton("+ Add Custom Provider")
+        header.addWidget(add_btn)
+        outer.addLayout(header)
+
+        subtitle = QLabel("Choose the language model used to clean up transcripts and interpret voice commands.")
+        subtitle.setStyleSheet(f"color: {Colors.TEXT_MUTED}; font-size: 11px;")
+        outer.addWidget(subtitle)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        container = QWidget()
+        self.list_layout = QVBoxLayout(container)
+        self.list_layout.setSpacing(10)
+        self.list_layout.setContentsMargins(0, 0, 4, 0)
+        scroll.setWidget(container)
+        outer.addWidget(scroll, 1)
+
+        # Initial populate will be done by UIBridge
+        # self.update_providers(AVAILABLE_PROVIDERS)
+
+    def update_providers(self, providers: list):
+        for row in self._rows.values():
+            row.setParent(None)
+        self._rows.clear()
+        while self.list_layout.count() > 0:
+            item = self.list_layout.takeAt(0)
+            if item.widget():
+                item.widget().setParent(None)
+
+        for provider in providers:
+            row = ProviderRow(
+                provider, self._group,
+                on_select=self.on_provider_selected.emit,
+                on_test=self.on_test_connection_clicked.emit,
+                on_key_changed=self.on_api_key_changed.emit,
+                on_model_changed=self.on_model_variant_changed.emit,
+                on_save=self.on_save_clicked.emit,
+            )
+            self._rows[provider["id"]] = row
+            self.list_layout.addWidget(row)
+        self.list_layout.addStretch(1)
+
+    def set_connection_status(self, provider_id: str, status: str):
+        if provider_id in self._rows:
+            self._rows[provider_id].set_connection_status(status)
+
+    def set_active_provider(self, provider_id: str):
+        for pid, row in self._rows.items():
+            row.set_active(pid == provider_id)

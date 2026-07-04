@@ -32,10 +32,5 @@ class APIProviderBase(LLMEngine):
 
     def _build_system_prompt(self) -> str:
         """Get the system prompt based on config.prompt_template."""
-        # This will be replaced by actual prompts.py later.
-        if self._config.prompt_template == "formal":
-            return "You are a formal dictation assistant. Fix grammar and remove filler words."
-        elif self._config.prompt_template == "code_comment":
-            return "You are a programmer. Format the dictation as a clear code comment."
-        else:
-            return "You are an AI dictation assistant. Refine the following spoken text, fixing any grammatical errors, removing filler words (um, uh), and formatting it properly. Output ONLY the refined text, nothing else."
+        from voiceflow.llm.prompts import get_template
+        return get_template(self._config.prompt_template)

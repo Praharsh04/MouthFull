@@ -66,8 +66,15 @@ class TextInjector:
         logger.info("Injecting text: '{}'", text)
 
         try:
+            import time
+            start_time = time.perf_counter()
             # Run injection synchronously in a background thread to avoid blocking asyncio
             await asyncio.to_thread(self._inject_sync, text)
+            
+            duration_ms = (time.perf_counter() - start_time) * 1000
+            from voiceflow.core.events import PipelineTiming
+            await self._bus.emit(PipelineTiming(stage="inject", duration_ms=duration_ms))
+            
             await self._bus.emit(StatusChanged(status="idle", message=""))
         except Exception as e:
             logger.error("Text injection failed: {}", e)

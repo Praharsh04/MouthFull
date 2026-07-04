@@ -80,10 +80,16 @@ class STTService:
         await self._bus.emit(StatusChanged(status="processing", message="Transcribing..."))
 
         try:
+            import time
+            start_time = time.perf_counter()
             # Run transcription in a thread to not block asyncio if the engine is synchronous
             transcript = await asyncio.to_thread(
                 self._run_transcription_sync, event.audio, event.sample_rate
             )
+            
+            duration_ms = (time.perf_counter() - start_time) * 1000
+            from voiceflow.core.events import PipelineTiming
+            await self._bus.emit(PipelineTiming(stage="stt", duration_ms=duration_ms))
 
             if self._aborted:
                 logger.info("STT aborted.")

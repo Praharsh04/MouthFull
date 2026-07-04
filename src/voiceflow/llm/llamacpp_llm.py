@@ -44,7 +44,8 @@ class LlamaCppLLM(LLMEngine):
         if not self._llm:
             raise LLMInferenceError("llama.cpp model not loaded.")
             
-        system_prompt = "You are an AI dictation assistant. Refine the following spoken text, fixing any grammatical errors, removing filler words, and formatting it properly. Output ONLY the refined text, nothing else."
+        from voiceflow.llm.prompts import get_template
+        system_prompt = get_template(self._config.prompt_template)
         
         try:
             import asyncio

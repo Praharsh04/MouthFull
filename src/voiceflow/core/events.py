@@ -104,6 +104,23 @@ class StatusChanged:
     message: str = ""
 
 
+@dataclass(frozen=True, slots=True)
+class PerformanceMetrics:
+    """Emitted periodically with system resource usage."""
+
+    cpu_percent: float
+    ram_percent: float
+    gpu_percent: float | None
+
+
+@dataclass(frozen=True, slots=True)
+class PipelineTiming:
+    """Emitted when a pipeline stage finishes to report its duration."""
+
+    stage: str
+    duration_ms: float
+
+
 # ---------------------------------------------------------------------------
 # EventBus
 # ---------------------------------------------------------------------------
