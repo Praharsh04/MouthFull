@@ -10,7 +10,7 @@ import asyncio
 from typing import TYPE_CHECKING
 
 from mouthfull.configs.config import APIKeys
-from mouthfull.utils.events import PipelineError, RefinedTextReady, StatusChanged, TranscriptReady
+from mouthfull.utils.events import PipelineError, RefinedTextReady, StatusChanged, PromptReady
 from mouthfull.utils.logger import logger
 from mouthfull.backend.llm.providers import get_provider
 
@@ -38,8 +38,8 @@ class LLMService:
         if not self._config.enabled:
             logger.info("LLM Service is disabled.")
             # If disabled, we should just pass the transcript through directly.
-            # But we'll handle that in _on_transcript_ready.
-            self._bus.subscribe(TranscriptReady, self._on_transcript_ready)
+            # But we'll handle that in _on_prompt_ready.
+            self._bus.subscribe(PromptReady, self._on_prompt_ready)
             return
 
         logger.info("Initializing LLM Provider: {}", self._config.provider)
@@ -52,14 +52,14 @@ class LLMService:
             await self._bus.emit(PipelineError(stage="llm_load", error=e))
             return
 
-        self._bus.subscribe(TranscriptReady, self._on_transcript_ready)
+        self._bus.subscribe(PromptReady, self._on_prompt_ready)
         logger.info("LLM Service started.")
 
     async def stop(self) -> None:
         """Unsubscribe and unload the model."""
         from mouthfull.utils.events import PipelineAbort
         self._bus.unsubscribe(PipelineAbort, self._on_abort)
-        self._bus.unsubscribe(TranscriptReady, self._on_transcript_ready)
+        self._bus.unsubscribe(PromptReady, self._on_prompt_ready)
         if self._engine:
             await self._engine.unload_model()
             self._engine = None
@@ -68,7 +68,7 @@ class LLMService:
     async def _on_abort(self, event) -> None:
         self._aborted = True
 
-    async def _on_transcript_ready(self, event: TranscriptReady) -> None:
+    async def _on_prompt_ready(self, event: PromptReady) -> None:
         self._aborted = False
         if not self._config.enabled or not self._engine:
             # Pass-through if disabled

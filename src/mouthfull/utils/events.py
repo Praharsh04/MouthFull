@@ -61,6 +61,13 @@ class TranscriptReady:
 
 
 @dataclass(frozen=True, slots=True)
+class PromptReady:
+    """Emitted when the prompt processor has prepared the text for the LLM."""
+
+    text: str
+
+
+@dataclass(frozen=True, slots=True)
 class RefinedTextReady:
     """Emitted when the LLM finishes refining the transcript."""
 

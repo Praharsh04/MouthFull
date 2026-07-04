@@ -63,7 +63,7 @@ class UIBridge(QObject):
         self._sync_settings_to_ui()
 
         from mouthfull.utils.download_manager import DownloadManager
-        self.dm = DownloadManager(self.bus)
+        self.dm = DownloadManager(self.bus, loop=self.loop)
         self.subscribe_to_backend()
         # 2. Connect UI interactions to Backend methods
         # ---------------------------------------------------------
@@ -81,6 +81,8 @@ class UIBridge(QObject):
         self.window.llms_page.on_api_key_changed.connect(self._on_llm_api_key_changed)
         self.window.llms_page.on_model_variant_changed.connect(self._on_llm_model_changed)
         self.window.llms_page.on_save_clicked.connect(self._on_llm_save)
+
+        self.window.prompt_page.on_settings_changed.connect(self._on_prompt_settings_changed)
 
         self.window.models_page.on_model_install_clicked.connect(self._on_stt_model_install)
         self.window.models_page.on_model_selected.connect(self._on_stt_model_selected)
@@ -281,6 +283,8 @@ class UIBridge(QObject):
         page.set_setting("input_gain", config.audio.input_gain)
         page.set_setting("theme", config.ui.theme)
         page.set_setting("silence_timeout", config.vad.padding_ms)
+        
+        self.window.prompt_page.set_config(config.prompt_processor.model_dump())
         
         # Audio devices
         try:
@@ -522,6 +526,21 @@ class UIBridge(QObject):
             winreg.CloseKey(key)
         except Exception as e:
             self.notification_requested.emit("Startup Setting Failed", str(e), "error")
+
+    def _on_prompt_settings_changed(self, settings_dict: dict):
+        from mouthfull.configs.config import save_config
+        self.app._config.prompt_processor.enabled = settings_dict.get("enabled", False)
+        self.app._config.prompt_processor.template = settings_dict.get("template", "")
+        save_config(self.app._config)
+        asyncio.run_coroutine_threadsafe(self._restart_prompt_processor(), self.loop)
+        self.notification_requested.emit("Saved", "Prompt Processor settings saved.", "success")
+
+    async def _restart_prompt_processor(self):
+        if hasattr(self.app, "_prompt"):
+            await self.app._prompt.stop()
+            from mouthfull.backend.prompt.service import PromptProcessorService
+            self.app._prompt = PromptProcessorService(self.app._config.prompt_processor, self.bus)
+            await self.app._prompt.start()
 
     # ---------------------------------------------------------
     # 3. Async Handlers: Subscribed to the EventBus

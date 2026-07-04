@@ -1,45 +1,33 @@
-# 🤖 Agent Progress & Handoff Summary
+# Agent Handoff Summary - MouthFull AI
 
-**Project State as of:** July 5, 2026
-**Application:** MouthFull Local (Fully Local STT & LLM Pipeline)
+## Overview
+This file contains the architectural context, bug fixes, and feature additions implemented during the latest session to assist future agent iterations.
 
-This file documents everything that was accomplished in the previous sessions so the next agent can seamlessly pick up where we left off.
+## Recent Architectural Additions
+1. **Prompt Processor Service (`backend/prompt/service.py`)**
+   - **Purpose:** Injects a dynamic prompt template between the STT generation and LLM refinement stages.
+   - **Pipeline Integration:** Listens to `TranscriptReady`, replaces `{{input}}` in the configurable template, and emits a new event `PromptReady`.
+   - **Decoupling:** `LLMService` now subscribes to `PromptReady` instead of `TranscriptReady`.
+   - **UI Integration:** A dedicated `PromptProcessorPage` was added to `ui/prompt.py` and inserted into the application `NavRail` and stacked pages.
+2. **Performance Configurations (`configs/config.py`)**
+   - **Injection Engine:** Changed default `method` from `typewrite` to `clipboard` for instant, multi-line injection without key-by-key typing latency.
+   - **STT Engine:** Hardcoded defaults switched from `faster_whisper` to `parakeet` (`nvidia/parakeet-tdt-1.1b`) for drastically reduced latency.
 
-## 🏆 What Has Been Completed
+## Critical Bug Fixes
+1. **PySide6 BrushStyle Crash (`ui/overlay.py`)**
+   - **Issue:** Calling `Qt.PenStyle.NoPen` on `setBrush()` caused a fatal `ValueError` terminating the application.
+   - **Fix:** Switched to `Qt.BrushStyle.NoBrush`.
+2. **DownloadManager Asyncio Crash (`utils/download_manager.py`)**
+   - **Issue:** `RuntimeError: no running event loop` was thrown when triggering model downloads via UI buttons. The PySide6 UI thread lacked an event loop for `asyncio.create_task`.
+   - **Fix:** `DownloadManager` is now instantiated by `UIBridge` with `loop=self.loop` passed as an argument. Downloads are triggered using `asyncio.run_coroutine_threadsafe`.
+3. **Orb UI Rendering and Positioning (`ui/overlay.py`)**
+   - **Fixes:** Squarish aura clipping was resolved by ensuring the container has equal dimensions and `border-radius: 50%` is applied securely. Positioning was changed from bottom-right to absolute bottom-center using `QScreen` geometry. Colors were mapped strictly to Sky Blue (listening) and Yellowish Green (processing).
 
-### 1. Massive Project Restructuring
-- Completely reorganized the messy root folder into a clean `src/mouthfull/` architecture.
-- Grouped logic into `backend/`, `configs/`, `utils/`, and `assets/`.
-- Updated all python internal imports using a regex script (`refactor.py`).
-- Resolved a critical `IndentationError` in `bridge.py` and missing method `subscribe_to_backend()` that was broken during the mass-refactoring.
-- Validated that the application starts and runs perfectly with the new structure.
+## Build Pipeline
+- **Command:** `python scripts/build.py --config Release`
+- **Output Directory:** `dist/Release/MouthFull/`
+- **Known Quirks:** When rebuilding, the running `MouthFull.exe` must be killed via `taskkill /IM MouthFull.exe /F` to avoid `WinError 5 Access is denied` during the `COLLECT` PyInstaller phase.
 
-### 2. Speech Models Manager (STT)
-- Designed and integrated a production-ready model downloader via `mouthfull.utils.download_manager`.
-- The UI properly handles "Not Installed", "Downloading", and "Installed" states.
-- Handled UI progress bars safely across PySide6 threads using `QMetaObject.invokeMethod`.
-
-### 3. PyInstaller Build (`MouthFull.exe`)
-- Ran `python scripts/build.py --config Release`.
-- Successfully compiled the entire application (including heavy PyTorch & Faster-Whisper dependencies) into a standalone package.
-- The compiled output is located at: `E:\Apps\Voky\dist\Release\MouthFull\MouthFull.exe`.
-
-### 4. Desktop Shortcut & OneDrive Desktop
-- Discovered the user's Desktop is actually synced to OneDrive (`E:\OneDrive\Desktop`) instead of the standard `C:\` drive.
-- Programmatically created `MouthFull.lnk` on the user's OneDrive Desktop pointing to the built `.exe`.
-
-### 5. UI Theming (Light / Dark Mode)
-- Implemented a dynamic theme switcher in `src/mouthfull/ui/theme.py`.
-- Added a dropdown in `settings.py` for "Dark (default)" and "Light".
-- Hooked `bridge.py` to intercept the `theme` setting change and gracefully apply the new colors while emitting a toast notification requesting an app restart to finalize the QSS changes.
-
-### 6. Logo Replacement
-- The user requested to use `Group 91.svg` as the global app logo.
-- Copied `Group 91.svg` to `src/mouthfull/assets/logo.svg`.
-- Updated `__main__.py` and `ui/app.py` to reference `logo.svg`.
-- Wrote a custom PyQt script (`convert_icon.py`) to render the SVG into a high-quality multi-size `.ico` (`logo.ico`), which is now successfully used by the Windows Desktop shortcut.
-
-## 🚀 Next Steps / Known Quirks
-- The codebase is stable. Running `python -m mouthfull` from `E:\Apps\Voky` launches the app correctly.
-- If the user has any issues with the compiled `.exe` after restarting their PC, check the logs in `dist/Release/MouthFull`.
-- The theme toggle requires an app restart to fully propagate since most widgets statically embed the QSS inline during initialization.
+## Future Considerations
+- Monitor the transition from `faster_whisper` to `parakeet` regarding cache verification; currently `models.py` uses simplified checks for Parakeet presence.
+- Ensure that clipboard restoration in `TextInjector._clipboard_inject` successfully retains rich formatting from the user's previous clipboard buffer.

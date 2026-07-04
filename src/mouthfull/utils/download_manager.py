@@ -9,8 +9,9 @@ class DownloadManager:
     """Manages active model downloads, supporting pause, resume, and cancel via a global state and custom tqdm."""
     _instance = None
     
-    def __init__(self, event_bus: EventBus):
+    def __init__(self, event_bus: EventBus, loop=None):
         self.bus = event_bus
+        self.loop = loop
         self.active_tasks = {} # model_id -> dict of state
         DownloadManager._instance = self
 
@@ -55,7 +56,10 @@ class DownloadManager:
                 if model_id in self.active_tasks:
                     del self.active_tasks[model_id]
 
-        asyncio.create_task(_run())
+        if self.loop:
+            asyncio.run_coroutine_threadsafe(_run(), self.loop)
+        else:
+            asyncio.create_task(_run())
 
     async def pause(self, model_id: str):
         if model_id in self.active_tasks:
@@ -121,7 +125,7 @@ class EventBusTqdm(tqdm):
 
             # Fire and forget emit to bus from a sync context
             # We must use run_coroutine_threadsafe
-            loop = getattr(self.dm.bus, "_loop", None)
+            loop = self.dm.loop if self.dm else None
             if not loop:
                 try:
                     loop = asyncio.get_running_loop()

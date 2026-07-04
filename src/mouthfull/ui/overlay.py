@@ -22,7 +22,7 @@ Methods (backend -> UI):
 """
 import math
 import PySide6.QtGui as QtGui
-from PySide6.QtCore import Qt, QTimer, Signal, QPoint, QPropertyAnimation, QEasingCurve
+from PySide6.QtCore import Qt, QTimer, Signal, QPoint, QPropertyAnimation, QEasingCurve, Property
 from PySide6.QtGui import QPainter, QColor, QRadialGradient, QLinearGradient, QPainterPath
 from PySide6.QtWidgets import QWidget, QLabel, QGraphicsOpacityEffect
 
@@ -30,9 +30,9 @@ from mouthfull.ui.theme import Colors
 
 THEMES = {
     "idle":      {"a": "#4f7cff", "b": "#6d5cff", "c": "#9b5cff"},
-    "listening": {"a": "#33c7ff", "b": "#4f9bff", "c": "#5c7dff"},
+    "listening": {"a": "#00d4ff", "b": "#00bfff", "c": "#87ceeb"},
     "speaking":  {"a": "#ff5c9d", "b": "#ff6f4f", "c": "#ffb454"},
-    "processing":{"a": "#6d5cff", "b": "#9b5cff", "c": "#c15cff"},
+    "processing":{"a": "#84cc16", "b": "#a3e635", "c": "#d9f99d"},
     "error":     {"a": "#ff5c5c", "b": "#ff8a3d", "c": "#ffb454"},
 }
 
@@ -72,7 +72,7 @@ class AIOrb(QWidget):
                           Qt.WindowType.Tool)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground)
-        self.setFixedSize(160, 160)
+        self.setFixedSize(280, 280)
 
         self._state = "idle"
         self._level = 0.0
@@ -218,6 +218,11 @@ class AIOrb(QWidget):
 
     def set_visible(self, visible: bool):
         if visible:
+            from PySide6.QtGui import QGuiApplication
+            screen = QGuiApplication.primaryScreen()
+            if screen:
+                self.snap_to_corner(screen.availableGeometry())
+                
             self._anim_exit.stop()
             self.setVisible(True)
             self._anim_enter.start()
@@ -312,7 +317,9 @@ class AIOrb(QWidget):
         p.scale(self._scale, self._scale)
         p.translate(-cx, -cy)
         
-        baseR = size * 0.28
+        # Orb core remains the same size as when widget was 160x160, but scaled down slightly as requested
+        logical_size = 120
+        baseR = logical_size * 0.28
         
         targetLevel = self._level
         speed = 1.0
@@ -360,7 +367,7 @@ class AIOrb(QWidget):
             
             pen = QtGui.QPen(grad, 2.5)
             p.setPen(pen)
-            p.setBrush(Qt.PenStyle.NoPen)
+            p.setBrush(Qt.BrushStyle.NoBrush)
             p.drawArc(int(-ringR), int(-ringR), int(ringR*2), int(ringR*2), 0, int(252 * 16))
             p.restore()
             
@@ -371,14 +378,14 @@ class AIOrb(QWidget):
                 r = radius * (1 + phase * 1.1)
                 alpha = (1 - phase) * 0.25 * (0.4 + level)
                 p.setPen(QtGui.QPen(self._hexA(a, alpha), 1.5))
-                p.setBrush(Qt.PenStyle.NoPen)
+                p.setBrush(Qt.BrushStyle.NoBrush)
                 p.drawEllipse(int(cx - r), int(cy - r), int(r * 2), int(r * 2))
                 
         # Error pulse
         if self._state == 'error':
             pulse = 0.5 + 0.5 * math.sin(self.t * 4)
             p.setPen(QtGui.QPen(self._hexA(a, 0.3 + pulse * 0.3), 2.0))
-            p.setBrush(Qt.PenStyle.NoPen)
+            p.setBrush(Qt.BrushStyle.NoBrush)
             err_r = radius * 1.2
             p.drawEllipse(int(cx - err_r), int(cy - err_r), int(err_r * 2), int(err_r * 2))
             

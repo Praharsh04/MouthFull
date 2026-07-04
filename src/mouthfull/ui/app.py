@@ -32,6 +32,7 @@ from mouthfull.ui.widgets import NavRail, ToastManager
 from mouthfull.ui.dashboard import DashboardPage
 from mouthfull.ui.models import ModelsPage
 from mouthfull.ui.llms import LLMProvidersPage
+from mouthfull.ui.prompt import PromptProcessorPage
 from mouthfull.ui.performance import PerformancePage
 from mouthfull.ui.logs import LogsPage
 from mouthfull.ui.settings import SettingsPage
@@ -116,6 +117,7 @@ class MainWindow(QMainWindow):
         self.dashboard = DashboardPage()
         self.models_page = ModelsPage()
         self.llms_page = LLMProvidersPage()
+        self.prompt_page = PromptProcessorPage()
         self.performance_page = PerformancePage()
         self.logs_page = LogsPage()
         self.settings_page = SettingsPage()
@@ -124,6 +126,7 @@ class MainWindow(QMainWindow):
             "dashboard": self.dashboard,
             "models": self.models_page,
             "llms": self.llms_page,
+            "prompt": self.prompt_page,
             "performance": self.performance_page,
             "logs": self.logs_page,
             "settings": self.settings_page,

@@ -62,9 +62,9 @@ class VADConfig(BaseModel):
 class STTConfig(BaseModel):
     """Speech-to-text engine settings."""
 
-    engine: Literal["faster_whisper", "parakeet"] = "faster_whisper"
+    engine: Literal["faster_whisper", "parakeet"] = "parakeet"
     # Model size can be whisper sizes or parakeet model tags like "nvidia/parakeet-ctc-0.6b"
-    model_size: str = "tiny.en"
+    model_size: str = "nvidia/parakeet-tdt-1.1b"
     device: Literal["auto", "cpu", "cuda"] = "auto"
     compute_type: Literal["auto", "int8", "float16", "float32"] = "auto"
     language: Optional[str] = None
@@ -113,7 +113,7 @@ class HotkeyConfig(BaseModel):
 class InjectionConfig(BaseModel):
     """Text-injection settings."""
 
-    method: Literal["typewrite", "clipboard"] = "typewrite"
+    method: Literal["typewrite", "clipboard"] = "clipboard"
     keystroke_delay: float = Field(default=0.01, ge=0.0, le=1.0)
 
 
@@ -161,6 +161,14 @@ class LoggingConfig(BaseModel):
         return upper
 
 
+class PromptProcessorConfig(BaseModel):
+    """Configuration for processing raw transcripts into LLM prompts."""
+
+    enabled: bool = False
+    template: str = "Please process the following dictated text carefully:\n\n{{input}}\n\nProvide the refined text below."
+
+
+
 # ---------------------------------------------------------------------------
 # Root configuration
 # ---------------------------------------------------------------------------
@@ -172,6 +180,7 @@ class AppConfig(BaseModel):
     audio: AudioConfig = AudioConfig()
     vad: VADConfig = VADConfig()
     stt: STTConfig = STTConfig()
+    prompt_processor: PromptProcessorConfig = PromptProcessorConfig()
     llm: LLMConfig = LLMConfig()
     hotkey: HotkeyConfig = HotkeyConfig()
     injection: InjectionConfig = InjectionConfig()
@@ -191,7 +200,7 @@ def load_config(path: str | Path | None = None) -> AppConfig:
 
     if not config_path.exists():
         # Create a default configuration if it doesn't exist in AppData
-        config_path.write_text("audio:\n  device_index: null\nstt:\n  engine: faster_whisper\n  model_size: tiny.en\nllm:\n  enabled: true\n  provider: ollama\nhotkey:\n  combination: ctrl+space\n  mode: toggle\ninjection:\n  method: clipboard\nui:\n  theme: system\n")
+        config_path.write_text("audio:\n  device_index: null\nstt:\n  engine: parakeet\n  model_size: nvidia/parakeet-tdt-1.1b\nllm:\n  enabled: true\n  provider: ollama\nhotkey:\n  combination: ctrl+space\n  mode: toggle\ninjection:\n  method: clipboard\nui:\n  theme: system\n")
         
     try:
         raw = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}

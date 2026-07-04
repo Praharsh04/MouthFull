@@ -56,6 +56,7 @@ class MouthFullApp:
         from mouthfull.backend.audio.vad import VoiceActivityDetector
         from mouthfull.backend.injection.injector import TextInjector
         from mouthfull.backend.input.hotkey import HotkeyListener
+        from mouthfull.backend.prompt.service import PromptProcessorService
         from mouthfull.backend.llm.service import LLMService
         from mouthfull.backend.stt.service import STTService
 
@@ -63,6 +64,7 @@ class MouthFullApp:
         self._capture = AudioCapture(self._config.audio, self._bus)
         self._vad = VoiceActivityDetector(self._config.vad, self._bus)
         self._stt = STTService(self._config.stt, self._bus)
+        self._prompt = PromptProcessorService(self._config.prompt_processor, self._bus)
         self._llm = LLMService(self._config.llm, self._bus)
         self._injector = TextInjector(self._config.injection, self._bus)
 
@@ -70,6 +72,7 @@ class MouthFullApp:
         await self._capture.start()
         await self._vad.start()
         await self._stt.start()
+        await self._prompt.start()
         await self._llm.start()
         await self._injector.start()
         await self._perf.start()
@@ -92,6 +95,7 @@ class MouthFullApp:
 
         await self._injector.stop()
         await self._llm.stop()
+        await self._prompt.stop()
         await self._stt.stop()
         await self._vad.stop()
         await self._capture.stop()
