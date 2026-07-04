@@ -1,5 +1,5 @@
 import pytest
-from voiceflow.core.events import EventBus, StatusChanged, Event
+from mouthfull.utils.events import EventBus, StatusChanged, Event
 import asyncio
 
 class DummyEvent(Event):

@@ -243,7 +243,7 @@ typing_extensions==4.15.0
 tzdata==2026.2
 uritemplate==4.2.0
 urllib3==2.6.3
--e git+https://github.com/Praharsh04/Vociflow.git@c4d08fa0b3e3efe634987c8ddd3452e232b29d10#egg=voiceflow_local
+-e git+https://github.com/Praharsh04/Vociflow.git@c4d08fa0b3e3efe634987c8ddd3452e232b29d10#egg=mouthfull_local
 wandb==0.28.0
 wcwidth==0.8.2
 webdataset==1.0.2

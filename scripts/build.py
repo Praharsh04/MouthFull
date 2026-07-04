@@ -8,7 +8,7 @@ def build(config: str):
     """Build the application using PyInstaller."""
     print(f"--- Building {config} configuration ---")
     
-    app_name = "VoiceFlow"
+    app_name = "MouthFull"
     if config == "Debug":
         app_name += "_Debug"
         
@@ -17,14 +17,25 @@ def build(config: str):
     
     # Base arguments
     args = [
-        "src/voiceflow/__main__.py",
+        "src/mouthfull/__main__.py",
         f"--name={app_name}",
         "--onedir",          # Use onedir instead of onefile to avoid huge temp extraction
-        "--clean",
         "--noconfirm",
         f"--workpath={build_dir}",
         f"--distpath={dist_dir}",
-        "--add-data=src/voiceflow/ui/assets;voiceflow/ui/assets",
+        "--add-data=src/mouthfull/assets;mouthfull/assets",
+        "--exclude-module=matplotlib",
+        "--exclude-module=IPython",
+        "--exclude-module=tkinter",
+        "--exclude-module=pandas",
+        "--exclude-module=scipy",
+        "--exclude-module=jupyter",
+        "--exclude-module=PySide6.QtWebEngine",
+        "--exclude-module=PySide6.QtWebEngineCore",
+        "--exclude-module=PySide6.QtWebEngineWidgets",
+        "--exclude-module=PySide6.QtQml",
+        "--exclude-module=PySide6.QtBluetooth",
+        "--exclude-module=torch.testing",
         # Ignore bulky unnecessary packages if any, PyInstaller handles imports
     ]
     
@@ -38,7 +49,7 @@ def build(config: str):
 
 if __name__ == "__main__":
     import argparse
-    parser = argparse.ArgumentParser(description="Build VoiceFlow Local")
+    parser = argparse.ArgumentParser(description="Build MouthFull Local")
     parser.add_argument("--config", choices=["Debug", "Release", "All"], default="All")
     args = parser.parse_args()
     

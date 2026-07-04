@@ -1,87 +1,59 @@
-# VoiceFlow Local
+# 🎙️ MouthFull AI
 
-A private, completely local AI dictation assistant for Windows.
+Welcome to **MouthFull**! Your all-in-one, fully local AI voice assistant and transcription tool.
 
-VoiceFlow Local allows you to dictate text using your microphone and have it intelligently transcribed and refined using local AI models, then automatically injected into whatever application you are using. No cloud APIs required, ensuring absolute privacy.
-
-## Features
-
-- **Global Hotkey Dictation**: Press and hold a hotkey (e.g., `Ctrl+Space`), speak, and release to type.
-- **Local Speech-to-Text**: Powered by Faster-Whisper or NVIDIA Parakeet for highly accurate, offline transcription.
-- **AI Refinement**: Automatically fixes grammar, removes filler words, and formats text using local LLMs via Ollama, Llama.cpp, or custom APIs (OpenAI, Anthropic, Gemini, OpenRouter also supported).
-- **Global Text Injection**: Instantly pastes the refined text into your active window (Word, browser, code editor, etc.).
-- **Modern UI**: Lightweight system tray integration and a beautiful floating status overlay.
-- **Custom Prompts**: Manage and switch between custom prompt templates easily.
+MouthFull allows you to easily transcribe speech, control local AI models, and chat with AI assistants entirely on your own hardware without relying on cloud services. We prioritize your privacy, low latency, and ease of use.
 
 ---
 
-## Installation Guide
+## 🚀 Getting Started
 
-### Option 1: Installer (Recommended)
-1. Go to the [Releases](../../releases) page.
-2. Download `VoiceFlow_Local_Setup.exe`.
-3. Run the installer and follow the instructions.
-4. Launch VoiceFlow Local from the Start Menu or Desktop shortcut.
+We've made launching MouthFull as easy as possible! 
 
-### Option 2: Portable ZIP
-1. Go to the [Releases](../../releases) page.
-2. Download `VoiceFlow_Local_Portable.zip`.
-3. Extract the ZIP to your desired location.
-4. Run `VoiceFlow.exe`.
+If you are using the compiled version, simply look for the **MouthFull** shortcut on your Desktop or double-click `MouthFull.exe`. 
 
-### Option 3: From Source (Developers)
-1. Clone the repository: `git clone https://github.com/voiceflow/voiceflow-local.git`
-2. Install Python 3.10+
-3. Install dependencies: `pip install -r requirements.txt`
-4. Run the app: `python -m voiceflow` (or double click `run_dev.bat`)
+**No terminal or command prompt needed!** 
 
----
+### For Developers (Running from Source)
+If you want to run the code directly, make sure you have Python 3.10+ installed and run the following in your terminal:
 
-## Development Guide
+```bash
+# 1. Install dependencies
+pip install -r requirements.txt
 
-### Setting up the Environment
-1. Clone the repository.
-2. Open a terminal and run `pip install -r requirements.txt` to install all dependencies.
-3. To run the app during development, you can use `run_dev.bat` or `python -m voiceflow`.
-
-### Building the Project
-We use PyInstaller to bundle the application into a standalone Windows executable.
-- Run `build.bat` or `build.ps1` to create the `dist/Release/VoiceFlow` directory.
-- To create the installer, install [Inno Setup](https://jrsoftware.org/isinfo.php) and compile `installer.iss`.
-
-### Clean Up
-- Run `clean.bat` to remove the `build` and `dist` directories.
+# 2. Run the application
+python -m mouthfull
+```
 
 ---
 
-## Architecture Overview
+## 🎯 Key Features
 
-VoiceFlow Local is built with a decoupled architecture for maximum stability and responsiveness:
-
-1. **Frontend (UI)**: Built with PySide6 (Qt). Manages the System Tray, Settings Window, Models/LLM Configuration Pages, and the floating AI Orb.
-2. **Backend (Services)**:
-   - **Audio Capture**: Uses `sounddevice` to stream raw audio.
-   - **VAD (Voice Activity Detection)**: Monitors microphone levels and segments speech.
-   - **STT (Speech-to-Text)**: Translates audio into raw text using `faster-whisper`.
-   - **LLM Refinement**: Refines the raw text using local (Ollama) or remote APIs.
-   - **Injector**: Uses `pynput` and `pyperclip` to inject the final text into the active window.
-3. **EventBus**: The frontend and backend communicate purely via an asynchronous `EventBus` (`voiceflow.core.events`). This ensures UI operations never block backend processing and vice-versa.
+- **Blazing Fast Defaults**: MouthFull now ships with `faster-whisper` (`tiny.en`) out of the box for ultra-low latency, real-time voice dictation that works flawlessly even on older hardware.
+- **One-Click STT Models**: Effortlessly browse and download top-tier Speech-to-Text models (like NVIDIA Canary, Whisper Large v3 Turbo, and Moonshine) directly from the beautiful UI. Switch models instantly without restarting!
+- **Privacy First**: Everything runs locally on your PC. No data is sent to external servers unless you explicitly configure a cloud LLM provider.
+- **Global Hotkey**: Press `Ctrl + Space` from anywhere on your PC to toggle the microphone and start speaking. 
+- **Dynamic Floating Orb**: A sleek, fully animated desktop widget gives you visual feedback while you speak! The orb smoothly fades in on hotkey trigger and automatically dismisses itself when your task is complete so it never clutters your screen.
+- **Fast and Lightweight**: Built with performance in mind using PySide6, asyncio, and optimized AI pipelines.
 
 ---
 
-## Contributing Guide
+## 🛠️ How to Use
 
-We welcome contributions! 
-1. Fork the repository.
-2. Create a new branch (`git checkout -b feature/awesome-feature`).
-3. Make your changes.
-4. Test your changes locally.
-5. Create a Pull Request against the `main` branch.
+1. **Launch the App:** Open MouthFull via your Desktop shortcut or `MouthFull.exe`.
+2. **Start Speaking:** Hold or press `Ctrl + Space` (default hotkey) to capture audio. The floating orb will appear at the bottom of your screen and pulse to your voice. When you release or finish, the AI will transcribe and process your speech, and the orb will smoothly hide itself!
+3. **Download a Model (Optional):** Go to the **Speech Models** page, select a recommended high-accuracy model (like Whisper Large), and click "Install". Wait for the download to finish, then hit "Select" to swap engines instantly.
 
-Please ensure your code conforms to the existing style and architecture. The project uses `ruff` for linting.
+### Customization
+- Head over to the **Settings** page to change your microphone, adjust the global hotkey, or tweak the theme.
+- Go to the **LLMs** page if you want to connect your transcription directly to an AI language model (like Llama, Mistral, or OpenAI).
 
 ---
 
-## License
+## 💬 Support & Troubleshooting
 
-MIT License. See `LICENSE` for details.
+- **Audio not working?** Make sure you selected the correct microphone in the Settings tab.
+- **Models failing to download?** Check your internet connection. You can pause and resume downloads at any time.
+- **App feels slow?** Check the **Performance** tab to see latency breakdowns. Running AI models locally requires a capable CPU/GPU. Try using a smaller model like `Whisper Tiny` or `Moonshine` if things feel sluggish.
+
+Enjoy using MouthFull! 🚀

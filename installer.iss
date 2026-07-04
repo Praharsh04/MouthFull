@@ -1,15 +1,15 @@
 [Setup]
-AppName=VoiceFlow Local
+AppName=MouthFull Local
 AppVersion=0.1.0
-AppPublisher=VoiceFlow Contributors
-AppPublisherURL=https://github.com/voiceflow/voiceflow-local
-DefaultDirName={autopf}\VoiceFlowLocal
-DefaultGroupName=VoiceFlow Local
-UninstallDisplayIcon={app}\VoiceFlow.exe
-Compression=lzma2
+AppPublisher=MouthFull Contributors
+AppPublisherURL=https://github.com/mouthfull/mouthfull-local
+DefaultDirName={autopf}\MouthFullLocal
+DefaultGroupName=MouthFull Local
+UninstallDisplayIcon={app}\MouthFull.exe
+Compression=lzma2/ultra64
 SolidCompression=yes
 OutputDir=release
-OutputBaseFilename=VoiceFlow_Local_Setup
+OutputBaseFilename=MouthFull_Local_Setup
 ArchitecturesInstallIn64BitMode=x64
 PrivilegesRequired=lowest
 
@@ -17,12 +17,12 @@ PrivilegesRequired=lowest
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "dist\Release\VoiceFlow\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "dist\Release\MouthFull\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{group}\VoiceFlow Local"; Filename: "{app}\VoiceFlow.exe"
-Name: "{group}\{cm:UninstallProgram,VoiceFlow Local}"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\VoiceFlow Local"; Filename: "{app}\VoiceFlow.exe"; Tasks: desktopicon
+Name: "{group}\MouthFull Local"; Filename: "{app}\MouthFull.exe"
+Name: "{group}\{cm:UninstallProgram,MouthFull Local}"; Filename: "{uninstallexe}"
+Name: "{autodesktop}\MouthFull Local"; Filename: "{app}\MouthFull.exe"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\VoiceFlow.exe"; Description: "{cm:LaunchProgram,VoiceFlow Local}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\MouthFull.exe"; Description: "{cm:LaunchProgram,MouthFull Local}"; Flags: nowait postinstall skipifsilent

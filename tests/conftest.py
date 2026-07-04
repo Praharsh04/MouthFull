@@ -1,11 +1,11 @@
-"""Shared pytest fixtures for the VoiceFlow test suite."""
+"""Shared pytest fixtures for the MouthFull test suite."""
 
 from __future__ import annotations
 
 import pytest
 
-from voiceflow.core.config import AppConfig
-from voiceflow.core.events import EventBus
+from mouthfull.configs.config import AppConfig
+from mouthfull.utils.events import EventBus
 
 
 @pytest.fixture

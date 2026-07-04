@@ -1,4 +1,4 @@
-# Contributing to VoiceFlow Local
+# Contributing to MouthFull Local
 
 Thank you for your interest in contributing!
 
@@ -14,7 +14,7 @@ pip install -e ".[dev]"
 
 ```bash
 pytest
-pytest --cov=voiceflow
+pytest --cov=mouthfull
 ```
 
 ## Code Style

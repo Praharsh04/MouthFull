@@ -3,14 +3,14 @@ requires = ["setuptools>=68.0", "setuptools-scm>=8.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "voiceflow-local"
+name = "mouthfull-local"
 version = "0.1.0"
 description = "A completely local AI dictation assistant for Windows."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
 authors = [
-    { name = "VoiceFlow Contributors" },
+    { name = "MouthFull Contributors" },
 ]
 keywords = ["dictation", "speech-to-text", "local", "whisper", "llm"]
 classifiers = [
@@ -59,7 +59,7 @@ dev = [
 ]
 
 [project.scripts]
-voiceflow = "voiceflow.__main__:main"
+mouthfull = "mouthfull.__main__:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

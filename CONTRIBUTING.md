@@ -1,6 +1,6 @@
-# Contributing to VoiceFlow Local
+# Contributing to MouthFull Local
 
-First off, thank you for considering contributing to VoiceFlow Local! It's people like you that make open-source a great community.
+First off, thank you for considering contributing to MouthFull Local! It's people like you that make open-source a great community.
 
 ## How Can I Contribute?
 
