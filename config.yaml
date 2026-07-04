@@ -1,0 +1,96 @@
+# ============================================================
+# VoiceFlow Local — Configuration
+# ============================================================
+# Edit this file to customize behavior. All paths are relative
+# to the project root unless specified as absolute.
+# ============================================================
+
+# --- Audio Settings -----------------------------------------
+audio:
+  # Input device index (null = system default)
+  device_index: null
+  # Sample rate in Hz (16000 recommended for Whisper)
+  sample_rate: 16000
+  # Number of audio channels (1 = mono)
+  channels: 1
+  # Audio chunk size in frames per buffer callback
+  chunk_size: 1024
+  # Debugging: save raw audio to disk
+  save_audio: false
+
+# --- Voice Activity Detection --------------------------------
+vad:
+  # Enable VAD to trim silence before sending to STT
+  enabled: true
+  # Confidence threshold (0.0 – 1.0). Higher = stricter.
+  threshold: 0.5
+  # Minimum speech duration in milliseconds to accept
+  min_speech_duration_ms: 250
+  # Padding added around detected speech in milliseconds
+  padding_ms: 300
+
+# --- Speech-to-Text (STT) -----------------------------------
+stt:
+  # Engine to use: "faster_whisper"
+  engine: "faster_whisper"
+  # Model size: "tiny", "base", "small", "medium", "large-v3"
+  model_size: "base"
+  # Device: "auto", "cpu", "cuda"
+  device: "auto"
+  # Compute type: "auto", "int8", "float16", "float32"
+  compute_type: "auto"
+  # Language code (null = auto-detect)
+  language: null
+  # Path to model files (null = use default cache)
+  model_path: null
+
+# --- LLM Refinement -----------------------------------------
+llm:
+  # Enable LLM-based text refinement
+  enabled: true
+  # Engine to use: "llamacpp"
+  engine: "llamacpp"
+  # Path to the GGUF model file
+  model_path: "models/llm/model.gguf"
+  # Number of GPU layers to offload (-1 = all, 0 = CPU only)
+  n_gpu_layers: 0
+  # Context window size in tokens
+  n_ctx: 2048
+  # Maximum tokens to generate
+  max_tokens: 512
+  # Sampling temperature (lower = more deterministic)
+  temperature: 0.3
+  # Prompt template name: "default", "formal", "code_comment"
+  prompt_template: "default"
+
+# --- Hotkey --------------------------------------------------
+hotkey:
+  # Key combination to activate recording
+  combination: "ctrl+space"
+  # Mode: "push_to_talk" (hold to record) or "toggle"
+  mode: "push_to_talk"
+
+# --- Text Injection ------------------------------------------
+injection:
+  # Method: "typewrite" (simulated keystrokes) or "clipboard"
+  method: "typewrite"
+  # Delay between keystrokes in seconds (typewrite mode)
+  keystroke_delay: 0.01
+
+# --- UI (System Tray) ----------------------------------------
+ui:
+  # Show system tray icon
+  show_tray: true
+  # Show Windows toast notifications
+  show_notifications: true
+
+# --- Logging -------------------------------------------------
+logging:
+  # Log level: "DEBUG", "INFO", "WARNING", "ERROR"
+  level: "INFO"
+  # Log to file (null = console only)
+  log_file: "logs/voiceflow.log"
+  # Log rotation size
+  rotation: "10 MB"
+  # Number of log files to retain
+  retention: 3
