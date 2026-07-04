@@ -34,6 +34,15 @@ def main() -> None:
         print(f"VoiceFlow Local v{__version__}")
         sys.exit(0)
 
+    from voiceflow.core.config import load_config
+    
+    # Pre-load config to check for first run
+    config = load_config()
+    if getattr(config.ui, "first_run", True):
+        from voiceflow.ui.wizard import SetupWizard
+        wizard = SetupWizard(config)
+        wizard.show_blocking()
+
     from voiceflow.app import VoiceFlowApp
     from voiceflow.core.exceptions import ConfigError
 
@@ -70,9 +79,26 @@ def main() -> None:
             sys.exit(1)
 
     try:
-        asyncio.run(app.run_forever())
+        import webview
+        from voiceflow.ui.overlay import get_webview_window
+        
+        # We start the webview loop in main thread, and asyncio in a background thread
+        window = get_webview_window()
+        
+        def _run_asyncio():
+            asyncio.run(app.run_forever())
+            
+        if window:
+            webview.start(_run_asyncio)
+        else:
+            asyncio.run(app.run_forever())
     except KeyboardInterrupt:
         pass
+    except ImportError:
+        try:
+            asyncio.run(app.run_forever())
+        except KeyboardInterrupt:
+            pass
 
 
 if __name__ == "__main__":

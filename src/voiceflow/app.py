@@ -42,8 +42,12 @@ class VoiceFlowApp:
     # ------------------------------------------------------------------
 
     async def start(self) -> None:
-        """Initialise all pipeline components and start the application."""
-        logger.info("Starting {} pipeline…", __app_name__)
+        """Start all services and begin the main loop."""
+        logger.info("Starting VoiceFlow Local pipeline…")
+        from voiceflow.core.events import PipelineError, NotificationEvent
+
+        # Subscribe to pipeline errors to notify user
+        self._bus.subscribe(PipelineError, self._on_pipeline_error)
 
         from voiceflow.audio.capture import AudioCapture
         from voiceflow.audio.vad import VoiceActivityDetector
@@ -100,10 +104,9 @@ class VoiceFlowApp:
         logger.info("{} stopped.", __app_name__)
 
     async def run_forever(self) -> None:
-        """Run the application until interrupted."""
+        """Run until stopped."""
         await self.start()
-
-        # Keep the event loop alive until a shutdown signal arrives.
+        
         stop_event = asyncio.Event()
 
         def _signal_handler() -> None:
@@ -126,3 +129,10 @@ class VoiceFlowApp:
             pass
         finally:
             await self.stop()
+
+    async def _on_pipeline_error(self, event) -> None:
+        from voiceflow.core.events import NotificationEvent
+        await self._bus.emit(NotificationEvent(
+            title=f"Error in {event.stage}",
+            message=str(event.error)
+        ))

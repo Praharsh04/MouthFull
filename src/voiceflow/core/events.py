@@ -76,6 +76,12 @@ class PipelineError:
 
 
 @dataclass(frozen=True, slots=True)
+class PipelineAbort:
+    """Emitted when the user cancels the current operation (e.g. by pressing Esc)."""
+
+
+
+@dataclass(frozen=True, slots=True)
 class AudioLevelChanged:
     """Emitted during audio capture to indicate microphone volume (0.0 to 1.0)."""
 

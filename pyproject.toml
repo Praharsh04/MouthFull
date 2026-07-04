@@ -43,6 +43,7 @@ dependencies = [
     "pyperclip>=1.8.2",
     "pywin32>=306",
     "psutil>=5.9.0",
+    "webrtcvad-wheels>=2.0.10.dev0",
 ]
 
 [project.optional-dependencies]

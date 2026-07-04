@@ -40,8 +40,11 @@ class WhisperSTT(STTEngine):
             # Map auto device to CPU or CUDA
             device = self._config.device
             if device == "auto":
-                import torch
-                device = "cuda" if torch.cuda.is_available() else "cpu"
+                try:
+                    import torch
+                    device = "cuda" if torch.cuda.is_available() else "cpu"
+                except ImportError:
+                    device = "cpu"
                 
             compute_type = self._config.compute_type
             if compute_type == "auto":

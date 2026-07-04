@@ -29,9 +29,12 @@ class LLMService:
         self._engine: LLMEngine | None = None
         self._api_keys = APIKeys()
         self._loop = asyncio.get_running_loop()
+        self._aborted = False
 
     async def start(self) -> None:
         """Initialize the LLM provider and subscribe to events."""
+        from voiceflow.core.events import PipelineAbort
+        self._bus.subscribe(PipelineAbort, self._on_abort)
         if not self._config.enabled:
             logger.info("LLM Service is disabled.")
             # If disabled, we should just pass the transcript through directly.
@@ -54,13 +57,19 @@ class LLMService:
 
     async def stop(self) -> None:
         """Unsubscribe and unload the model."""
+        from voiceflow.core.events import PipelineAbort
+        self._bus.unsubscribe(PipelineAbort, self._on_abort)
         self._bus.unsubscribe(TranscriptReady, self._on_transcript_ready)
         if self._engine:
             await self._engine.unload_model()
             self._engine = None
         logger.info("LLM Service stopped.")
 
+    async def _on_abort(self, event) -> None:
+        self._aborted = True
+
     async def _on_transcript_ready(self, event: TranscriptReady) -> None:
+        self._aborted = False
         if not self._config.enabled or not self._engine:
             # Pass-through if disabled
             await self._bus.emit(RefinedTextReady(text=event.text))
@@ -71,6 +80,11 @@ class LLMService:
 
         try:
             refined_text = await self._engine.refine(event.text)
+            
+            if self._aborted:
+                logger.info("LLM aborted.")
+                return
+
             logger.info("Refined text: '{}'", refined_text)
 
             if refined_text.strip():

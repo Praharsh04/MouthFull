@@ -47,14 +47,29 @@ class AudioCapture:
         """Subscribe to hotkey events to control recording."""
         self._bus.subscribe(HotkeyPressed, self._on_hotkey_pressed)
         self._bus.subscribe(HotkeyReleased, self._on_hotkey_released)
+        from voiceflow.core.events import PipelineAbort
+        self._bus.subscribe(PipelineAbort, self._on_pipeline_abort)
         logger.info("AudioCapture initialised.")
 
     async def stop(self) -> None:
         """Stop any active recording and unsubscribe."""
         self._bus.unsubscribe(HotkeyPressed, self._on_hotkey_pressed)
         self._bus.unsubscribe(HotkeyReleased, self._on_hotkey_released)
+        from voiceflow.core.events import PipelineAbort
+        self._bus.unsubscribe(PipelineAbort, self._on_pipeline_abort)
         if self._recording:
             await self._stop_recording()
+
+    async def _on_pipeline_abort(self, event) -> None:
+        if self._recording:
+            logger.info("Recording aborted by PipelineAbort.")
+            self._recording = False
+            if self._stream is not None:
+                self._stream.stop()
+                self._stream.close()
+                self._stream = None
+            while not self._audio_queue.empty():
+                self._audio_queue.get_nowait()
 
     async def _on_hotkey_pressed(self, event: HotkeyPressed) -> None:
         if not self._recording:

@@ -14,7 +14,7 @@ Usage::
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Optional
 
 import yaml
 from pydantic import BaseModel, Field, field_validator
@@ -109,6 +109,8 @@ class UIConfig(BaseModel):
     theme: Literal["system", "light", "dark"] = "system"
     startup_on_windows: bool = False
     show_notifications: bool = True
+    show_tray: bool = True
+    first_run: bool = True
 
     # Orb Settings
     show_orb: bool = True

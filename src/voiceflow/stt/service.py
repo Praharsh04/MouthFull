@@ -29,6 +29,7 @@ class STTService:
         self._bus = event_bus
         self._engine: STTEngine | None = None
         self._loop = asyncio.get_running_loop()
+        self._aborted = False
 
     def _create_engine(self) -> STTEngine:
         if self._config.engine == "faster_whisper":
@@ -46,22 +47,30 @@ class STTService:
         try:
             await self._engine.load_model()
         except Exception as e:
-            logger.error("Failed to load STT model: {}", e)
+            logger.exception("Failed to load STT model: {}", e)
             await self._bus.emit(PipelineError(stage="stt_load", error=e))
             return
 
+        from voiceflow.core.events import PipelineAbort
         self._bus.subscribe(SpeechDetected, self._on_speech_detected)
+        self._bus.subscribe(PipelineAbort, self._on_abort)
         logger.info("STT Service started.")
 
     async def stop(self) -> None:
         """Unsubscribe and unload the model."""
+        from voiceflow.core.events import PipelineAbort
         self._bus.unsubscribe(SpeechDetected, self._on_speech_detected)
+        self._bus.unsubscribe(PipelineAbort, self._on_abort)
         if self._engine:
             await self._engine.unload_model()
             self._engine = None
         logger.info("STT Service stopped.")
 
+    async def _on_abort(self, event) -> None:
+        self._aborted = True
+
     async def _on_speech_detected(self, event: SpeechDetected) -> None:
+        self._aborted = False
         if not self._engine:
             return
 
@@ -75,6 +84,10 @@ class STTService:
             transcript = await asyncio.to_thread(
                 self._run_transcription_sync, event.audio, event.sample_rate
             )
+
+            if self._aborted:
+                logger.info("STT aborted.")
+                return
 
             logger.info("Transcription: {}", transcript)
 

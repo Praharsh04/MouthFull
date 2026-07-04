@@ -34,6 +34,54 @@ class SystemTray:
         self._icon: pystray.Icon | None = None
         self._thread: threading.Thread | None = None
         self._loop = asyncio.get_running_loop()
+        self._settings_win = None
+
+    def _create_menu(self) -> pystray.Menu:
+        """Create the context menu."""
+        from pystray import MenuItem
+        return pystray.Menu(
+            MenuItem("Open Dashboard", self._on_dashboard_clicked, default=True),
+            MenuItem("Settings", self._on_settings_clicked),
+            MenuItem("Restart Backend", self._on_restart_clicked),
+            MenuItem("View Logs", self._on_logs_clicked),
+            MenuItem("Exit", self._on_quit_clicked)
+        )
+
+    def _on_dashboard_clicked(self, icon: pystray.Icon, item: pystray.MenuItem) -> None:
+        """Handle Dashboard click."""
+        from voiceflow.ui.dashboard import DashboardWindow
+        if not hasattr(self, '_dashboard_win') or not self._dashboard_win:
+            self._dashboard_win = DashboardWindow(self._config, self._bus)
+        self._dashboard_win.show()
+
+    def _on_settings_clicked(self, icon: pystray.Icon, item: pystray.MenuItem) -> None:
+        """Handle Settings click."""
+        from voiceflow.ui.settings import SettingsWindow
+        if not self._settings_win:
+            self._settings_win = SettingsWindow(self._config)
+        self._settings_win.show()
+
+    def _on_restart_clicked(self, icon: pystray.Icon, item: pystray.MenuItem) -> None:
+        """Handle Restart Backend click."""
+        logger.info("Restarting backend...")
+        # Since components listen to config changes, we might emit a restart event
+        # For now, log it. Full restart logic will be implemented.
+        pass
+
+    def _on_logs_clicked(self, icon: pystray.Icon, item: pystray.MenuItem) -> None:
+        """Handle View Logs click."""
+        import os
+        log_path = "logs/voiceflow.log"
+        if os.path.exists(log_path):
+            os.startfile(log_path)
+            
+    def _on_quit_clicked(self, icon: pystray.Icon, item: pystray.MenuItem) -> None:
+        """Quit the application."""
+        logger.info("Quit selected from tray.")
+        icon.stop()
+        import os
+        import signal
+        os.kill(os.getpid(), signal.SIGTERM)
 
     def _create_image(self, color: str) -> Image.Image:
         """Create a simple circle icon of a given color."""
@@ -42,47 +90,12 @@ class SystemTray:
         dc.ellipse((8, 8, 56, 56), fill=color)
         return image
 
-    def _on_settings(self, icon: pystray.Icon, item: pystray.MenuItem) -> None:
-        """Open the settings window (blocks the tray thread temporarily, which is OK for this simple app)."""
-        logger.info("Opening Settings window...")
-        window = SettingsWindow(self._config)
-        window.show()
-
-    def _on_about(self, icon: pystray.Icon, item: pystray.MenuItem) -> None:
-        """Show the About dialog."""
-        import tkinter as tk
-        from tkinter import messagebox
-
-        from voiceflow import __version__
-
-        root = tk.Tk()
-        root.withdraw()
-        msg = f"VoiceFlow Local v{__version__}\n\n"
-        msg += f"Global Hotkey: {self._config.hotkey.combination.upper()} ({self._config.hotkey.mode})\n"
-        msg += f"Text Injection: {self._config.injection.method}\n\n"
-        msg += "A private, completely local AI dictation assistant."
-        messagebox.showinfo("About VoiceFlow Local", msg, master=root)
-        root.destroy()
-
-    def _on_quit(self, icon: pystray.Icon, item: pystray.MenuItem) -> None:
-        """Quit the application."""
-        logger.info("Quit selected from tray.")
-        icon.stop()
-        import os
-        import signal
-        os.kill(os.getpid(), signal.SIGTERM)
-
     def _run_tray(self) -> None:
-        menu = pystray.Menu(
-            item("Settings...", self._on_settings),
-            item("About...", self._on_about),
-            item("Quit", self._on_quit),
-        )
         self._icon = pystray.Icon(
             "voiceflow",
             self._create_image("gray"),
             "VoiceFlow Local",
-            menu=menu
+            menu=self._create_menu()
         )
         self._icon.run()
 

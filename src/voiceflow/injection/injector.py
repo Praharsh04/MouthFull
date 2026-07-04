@@ -28,19 +28,36 @@ class TextInjector:
         self._config = config
         self._bus = event_bus
         self._keyboard = Controller()
+        self._aborted = False
 
     async def start(self) -> None:
         """Subscribe to RefinedTextReady."""
+        from voiceflow.core.events import PipelineAbort, HotkeyPressed
+        self._bus.subscribe(HotkeyPressed, self._on_hotkey)
+        self._bus.subscribe(PipelineAbort, self._on_abort)
         self._bus.subscribe(RefinedTextReady, self._on_text_ready)
         logger.info("TextInjector started.")
 
     async def stop(self) -> None:
         """Unsubscribe."""
+        from voiceflow.core.events import PipelineAbort, HotkeyPressed
+        self._bus.unsubscribe(HotkeyPressed, self._on_hotkey)
+        self._bus.unsubscribe(PipelineAbort, self._on_abort)
         self._bus.unsubscribe(RefinedTextReady, self._on_text_ready)
         logger.info("TextInjector stopped.")
 
+    async def _on_hotkey(self, event) -> None:
+        self._aborted = False
+
+    async def _on_abort(self, event) -> None:
+        self._aborted = True
+
     async def _on_text_ready(self, event: RefinedTextReady) -> None:
         """Inject the text."""
+        if self._aborted:
+            logger.info("Injection aborted.")
+            return
+
         text = event.text.strip()
         if not text:
             await self._bus.emit(StatusChanged(status="idle", message=""))

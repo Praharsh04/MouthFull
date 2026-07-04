@@ -33,7 +33,10 @@ class HotkeyListener:
 
         # We use pynput's HotKey helper to parse and track the combination
         try:
-            self._hotkey_keys = keyboard.HotKey.parse(self._config.combination)
+            # Convert "ctrl+space" to "<ctrl>+<space>" for pynput
+            parts = [f"<{p.strip()}>" if len(p.strip()) > 1 else p.strip() for p in self._config.combination.lower().split('+')]
+            pynput_combo = '+'.join(parts)
+            self._hotkey_keys = keyboard.HotKey.parse(pynput_combo)
         except Exception as e:
             logger.error("Failed to parse hotkey combination '{}': {}", self._config.combination, e)
             self._hotkey_keys = []
@@ -52,6 +55,15 @@ class HotkeyListener:
     def _on_press(self, key: keyboard.Key | keyboard.KeyCode | None) -> None:
         if key is None:
             return
+        
+        # Abort pipeline if ESC is pressed
+        if key == keyboard.Key.esc:
+            logger.info("ESC pressed. Aborting pipeline.")
+            from voiceflow.core.events import PipelineAbort, StatusChanged
+            asyncio.run_coroutine_threadsafe(self._bus.emit(PipelineAbort()), self._loop)
+            asyncio.run_coroutine_threadsafe(self._bus.emit(StatusChanged(status="idle")), self._loop)
+            return
+
         key = self._listener.canonical(key) if self._listener else key
         self._pressed_keys.add(key)
         self._hotkey_tracker.press(key)

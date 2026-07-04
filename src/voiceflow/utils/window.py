@@ -79,7 +79,10 @@ def get_active_window_info() -> tuple[Optional[str], Optional[Image.Image]]:
                 bmpstr, 'raw', 'BGRA', 0, 1
             )
             
-            win32gui.DestroyIcon(hicon)
+            try:
+                win32gui.DestroyIcon(hicon)
+            except Exception:
+                pass
             
     except Exception as e:
         import traceback
