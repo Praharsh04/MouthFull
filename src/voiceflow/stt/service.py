@@ -6,12 +6,13 @@ and emits TranscriptReady.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
 import asyncio
+from typing import TYPE_CHECKING
 
-from voiceflow.core.events import SpeechDetected, TranscriptReady, StatusChanged, PipelineError
+from voiceflow.core.events import PipelineError, SpeechDetected, StatusChanged, TranscriptReady
 from voiceflow.core.logger import logger
 from voiceflow.stt.whisper_stt import WhisperSTT
+
 # ParakeetSTT will be imported dynamically if needed, to avoid import errors if not installed.
 
 if TYPE_CHECKING:
@@ -63,26 +64,26 @@ class STTService:
     async def _on_speech_detected(self, event: SpeechDetected) -> None:
         if not self._engine:
             return
-            
+
         logger.info("Transcribing {} seconds of audio...", len(event.audio) / event.sample_rate)
-        
+
         # Display progress in overlay
         await self._bus.emit(StatusChanged(status="processing", message="Transcribing..."))
-        
+
         try:
             # Run transcription in a thread to not block asyncio if the engine is synchronous
             transcript = await asyncio.to_thread(
                 self._run_transcription_sync, event.audio, event.sample_rate
             )
-            
+
             logger.info("Transcription: {}", transcript)
-            
+
             if transcript.strip():
                 await self._bus.emit(TranscriptReady(text=transcript))
             else:
                 logger.warning("Empty transcription result.")
                 await self._bus.emit(StatusChanged(status="idle", message=""))
-                
+
         except Exception as e:
             logger.error("Transcription failed: {}", e)
             await self._bus.emit(PipelineError(stage="stt_transcribe", error=e))

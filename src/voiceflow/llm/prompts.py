@@ -8,8 +8,9 @@ Responsibilities:
 
 from __future__ import annotations
 
-import yaml
 from pathlib import Path
+
+import yaml
 
 BUILTIN_TEMPLATES: dict[str, str] = {
     "default": "You are a dictation assistant. Fix grammar, spelling, punctuation, and remove filler words (um, uh). Output ONLY the corrected text.\n\nDictated text: {raw_text}",
@@ -20,33 +21,33 @@ BUILTIN_TEMPLATES: dict[str, str] = {
 
 class PromptManager:
     """Manages prompt templates and persistence."""
-    
+
     def __init__(self, path: str = "prompts.yaml"):
         self.path = Path(path)
         self.templates = BUILTIN_TEMPLATES.copy()
         self.load()
-        
+
     def load(self) -> None:
         if self.path.exists():
             try:
-                with open(self.path, "r", encoding="utf-8") as f:
+                with open(self.path, encoding="utf-8") as f:
                     custom = yaml.safe_load(f) or {}
                     self.templates.update(custom)
             except Exception:
                 pass
-                
+
     def save(self) -> None:
         custom_templates = {k: v for k, v in self.templates.items() if k not in BUILTIN_TEMPLATES or BUILTIN_TEMPLATES[k] != v}
         with open(self.path, "w", encoding="utf-8") as f:
             yaml.safe_dump(custom_templates, f)
-            
+
     def get_template(self, name: str) -> str:
         return self.templates.get(name, BUILTIN_TEMPLATES["default"])
-        
+
     def set_template(self, name: str, content: str) -> None:
         self.templates[name] = content
         self.save()
-        
+
     def delete_template(self, name: str) -> None:
         if name in self.templates:
             del self.templates[name]

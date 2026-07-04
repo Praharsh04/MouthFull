@@ -14,7 +14,7 @@ Usage::
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Literal
 
 import yaml
 from pydantic import BaseModel, Field, field_validator
@@ -30,9 +30,9 @@ class AudioConfig(BaseModel):
     """Microphone / audio-capture settings."""
 
     device_index: Optional[int] = None
-    sample_rate: int = Field(16_000, ge=8_000, le=48_000)
-    channels: int = Field(1, ge=1, le=2)
-    chunk_size: int = Field(1024, ge=256, le=8192)
+    sample_rate: int = Field(default=16_000, ge=8_000, le=48_000)
+    channels: int = Field(default=1, ge=1, le=2)
+    chunk_size: int = Field(default=1024, ge=256, le=8192)
     save_audio: bool = False  # Debugging: save raw audio to disk
 
 
@@ -40,9 +40,9 @@ class VADConfig(BaseModel):
     """Silero Voice-Activity-Detection settings."""
 
     enabled: bool = True
-    threshold: float = Field(0.5, ge=0.0, le=1.0)
-    min_speech_duration_ms: int = Field(250, ge=0)
-    padding_ms: int = Field(300, ge=0)
+    threshold: float = Field(default=0.5, ge=0.0, le=1.0)
+    min_speech_duration_ms: int = Field(default=250, ge=0)
+    padding_ms: int = Field(default=300, ge=0)
 
 
 class STTConfig(BaseModel):
@@ -58,6 +58,7 @@ class STTConfig(BaseModel):
 
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
 
 class APIKeys(BaseSettings):
     """API keys loaded from .env or environment variables."""
@@ -77,14 +78,14 @@ class LLMConfig(BaseModel):
     provider: str = "ollama"  # e.g., llamacpp, ollama, openai, anthropic, gemini, openrouter, custom
     model: str = "llama3"
     api_base: Optional[str] = None  # Used for custom APIs or overriding defaults
-    
+
     # Local model specific
     model_path: Optional[str] = "models/llm/model.gguf"
     n_gpu_layers: int = 0
-    
-    n_ctx: int = Field(2048, ge=512)
-    max_tokens: int = Field(512, ge=64)
-    temperature: float = Field(0.3, ge=0.0, le=2.0)
+
+    n_ctx: int = Field(default=2048, ge=512)
+    max_tokens: int = Field(default=512, ge=64)
+    temperature: float = Field(default=0.3, ge=0.0, le=2.0)
     prompt_template: str = "default"
 
 
@@ -99,7 +100,7 @@ class InjectionConfig(BaseModel):
     """Text-injection settings."""
 
     method: Literal["typewrite", "clipboard"] = "typewrite"
-    keystroke_delay: float = Field(0.01, ge=0.0, le=1.0)
+    keystroke_delay: float = Field(default=0.01, ge=0.0, le=1.0)
 
 
 class UIConfig(BaseModel):
@@ -115,7 +116,7 @@ class LoggingConfig(BaseModel):
     """Logging settings."""
 
     level: str = "INFO"
-    log_file: Optional[str] = "logs/voiceflow.log"
+    log_file: str | None = "logs/voiceflow.log"
     rotation: str = "10 MB"
     retention: int = 3
 

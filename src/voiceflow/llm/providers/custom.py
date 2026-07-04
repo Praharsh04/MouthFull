@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from voiceflow.llm.providers.openai import OpenAIProvider
 from voiceflow.core.exceptions import LLMInferenceError
+from voiceflow.llm.providers.openai import OpenAIProvider
 
 
 class CustomAPIProvider(OpenAIProvider):
@@ -12,19 +12,19 @@ class CustomAPIProvider(OpenAIProvider):
     async def refine(self, raw_text: str) -> str:
         if not self._client:
             raise LLMInferenceError("Custom API client not loaded.")
-            
+
         api_key = self._api_keys.custom_api_key
         if not self._config.api_base:
             raise LLMInferenceError("api_base must be provided for custom API.")
-            
+
         url = self._config.api_base.rstrip("/") + "/chat/completions"
-        
+
         headers = {
             "Content-Type": "application/json"
         }
         if api_key:
             headers["Authorization"] = f"Bearer {api_key}"
-            
+
         payload = {
             "model": self._config.model,
             "messages": [
@@ -34,7 +34,7 @@ class CustomAPIProvider(OpenAIProvider):
             "temperature": self._config.temperature,
             "max_tokens": self._config.max_tokens,
         }
-        
+
         try:
             response = await self._client.post(url, headers=headers, json=payload)
             response.raise_for_status()

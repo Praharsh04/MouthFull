@@ -6,17 +6,17 @@ Uses NVIDIA NeMo Toolkit to load and run Parakeet models.
 from __future__ import annotations
 
 import gc
-from typing import TYPE_CHECKING
-import tempfile
-import soundfile as sf
 import os
+import tempfile
+from typing import TYPE_CHECKING
 
 import numpy as np
+import soundfile as sf
 from numpy.typing import NDArray
 
+from voiceflow.core.exceptions import STTModelLoadError, STTTranscriptionError
 from voiceflow.core.logger import logger
 from voiceflow.stt.base import STTEngine
-from voiceflow.core.exceptions import STTModelLoadError, STTTranscriptionError
 
 if TYPE_CHECKING:
     from voiceflow.core.config import STTConfig
@@ -55,12 +55,12 @@ class ParakeetSTT(STTEngine):
                 self._model = nemo_asr.models.EncDecCTCModelBPE.from_pretrained(
                     model_name=self._config.model_size
                 )
-            
+
             # Move to device if necessary (nemo handles cuda by default if available)
             if self._config.device == "cpu":
                 import torch
                 self._model.to(torch.device("cpu"))
-                
+
             logger.info("Parakeet model loaded successfully.")
         except Exception as e:
             raise STTModelLoadError(f"Failed to load Parakeet model {self._config.model_size}: {e}") from e
@@ -82,25 +82,25 @@ class ParakeetSTT(STTEngine):
         # Write to temporary file for NeMo to process
         fd, tmp_path = tempfile.mkstemp(suffix=".wav")
         os.close(fd)
-        
+
         try:
             sf.write(tmp_path, audio, sample_rate)
-            
+
             # NeMo transcribe returns a tuple of lists.
             # Depending on model type (CTC vs RNNT), it might return 1 or 2 items.
             transcription_results = self._model.transcribe([tmp_path])
-            
+
             # Handle different return formats from NeMo
             if isinstance(transcription_results, tuple):
                 transcripts = transcription_results[0]
             else:
                 transcripts = transcription_results
-                
+
             if not transcripts:
                 return ""
-                
+
             return transcripts[0]
-            
+
         except Exception as e:
             raise STTTranscriptionError(f"Parakeet transcription failed: {e}") from e
         finally:
@@ -117,9 +117,9 @@ class ParakeetSTT(STTEngine):
             logger.info("Unloading Parakeet model...")
             del self._model
             self._model = None
-            
+
             import torch
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
-            
+
             gc.collect()

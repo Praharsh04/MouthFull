@@ -22,6 +22,7 @@ if TYPE_CHECKING:
 from voiceflow.core.events import AudioCaptured, SpeechDetected
 from voiceflow.core.logger import logger
 
+
 class VoiceActivityDetector:
     """Silero VAD wrapper (Pass-through for now)."""
 
@@ -43,7 +44,7 @@ class VoiceActivityDetector:
         if not self._config.enabled:
             await self._bus.emit(SpeechDetected(audio=event.audio, sample_rate=event.sample_rate))
             return
-            
+
         # TODO: Implement actual Silero VAD logic.
         # For now, pass all audio through.
         logger.debug("VAD pass-through.")

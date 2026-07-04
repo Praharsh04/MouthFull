@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from voiceflow.llm.providers.base_api import APIProviderBase
 from voiceflow.core.exceptions import LLMInferenceError
+from voiceflow.llm.providers.base_api import APIProviderBase
 
 
 class OllamaProvider(APIProviderBase):
@@ -12,10 +12,10 @@ class OllamaProvider(APIProviderBase):
     async def refine(self, raw_text: str) -> str:
         if not self._client:
             raise LLMInferenceError("Ollama client not loaded.")
-            
+
         url = self._config.api_base or "http://localhost:11434"
         url = url.rstrip("/") + "/api/chat"
-        
+
         payload = {
             "model": self._config.model,
             "messages": [
@@ -28,7 +28,7 @@ class OllamaProvider(APIProviderBase):
                 "num_predict": self._config.max_tokens,
             }
         }
-        
+
         try:
             response = await self._client.post(url, json=payload)
             response.raise_for_status()

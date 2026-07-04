@@ -41,25 +41,26 @@ def main() -> None:
         app = VoiceFlowApp(config_path=args.config)
         first_time = False
     except ConfigError:
-        from voiceflow.core.config import AppConfig
         import tkinter as tk
         from tkinter import messagebox
+
+        from voiceflow.core.config import AppConfig
         from voiceflow.ui.settings import SettingsWindow
-        
+
         # First time setup
         root = tk.Tk()
         root.withdraw()
         messagebox.showinfo(
-            "Welcome to VoiceFlow Local", 
-            "It looks like this is your first time running VoiceFlow.\n\nPlease configure your preferred Speech-to-Text and LLM providers.", 
+            "Welcome to VoiceFlow Local",
+            "It looks like this is your first time running VoiceFlow.\n\nPlease configure your preferred Speech-to-Text and LLM providers.",
             master=root
         )
-        
+
         # Launch settings with default config
         default_config = AppConfig()
         win = SettingsWindow(default_config)
         win.show()
-        
+
         # Try loading again
         try:
             app = VoiceFlowApp(config_path=args.config)

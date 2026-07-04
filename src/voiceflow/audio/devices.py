@@ -11,6 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import sounddevice as sd
+
 from voiceflow.core.exceptions import AudioDeviceNotFoundError
 
 

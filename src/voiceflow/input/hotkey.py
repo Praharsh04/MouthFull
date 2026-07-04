@@ -30,14 +30,14 @@ class HotkeyListener:
         self._listener: keyboard.Listener | None = None
         self._active = False
         self._loop = asyncio.get_running_loop()
-        
+
         # We use pynput's HotKey helper to parse and track the combination
         try:
             self._hotkey_keys = keyboard.HotKey.parse(self._config.combination)
         except Exception as e:
             logger.error("Failed to parse hotkey combination '{}': {}", self._config.combination, e)
             self._hotkey_keys = []
-            
+
         self._hotkey_tracker = keyboard.HotKey(self._hotkey_keys, self._on_activate)
         self._pressed_keys: set[keyboard.Key | keyboard.KeyCode] = set()
 
@@ -62,9 +62,9 @@ class HotkeyListener:
         key = self._listener.canonical(key) if self._listener else key
         if key in self._pressed_keys:
             self._pressed_keys.remove(key)
-            
+
         self._hotkey_tracker.release(key)
-        
+
         # If we were active and now we aren't holding all the keys
         if self._active:
             # Check if any key from the combination is released
@@ -73,7 +73,7 @@ class HotkeyListener:
             if not still_pressed:
                 self._active = False
                 logger.debug("Hotkey deactivated.")
-                
+
                 # In toggle mode, we only emit HotkeyReleased if it was a second press.
                 # Actually, in toggle mode, HotkeyPressed handles starting/stopping.
                 # But for push_to_talk, release stops.
@@ -81,7 +81,7 @@ class HotkeyListener:
                     asyncio.run_coroutine_threadsafe(self._bus.emit(HotkeyReleased()), self._loop)
                 else:
                     # For toggle mode, HotkeyReleased is not emitted on physical key release,
-                    # we would emit HotkeyReleased on the *next* activate. 
+                    # we would emit HotkeyReleased on the *next* activate.
                     # We will handle toggle logic in the app orchestrator or here.
                     # Let's just emit HotkeyReleased if we are in push_to_talk mode.
                     pass
@@ -97,7 +97,7 @@ class HotkeyListener:
             on_release=self._on_release,
         )
         self._listener.start()
-        logger.info("Hotkey listener started (combination: {}, mode: {}).", 
+        logger.info("Hotkey listener started (combination: {}, mode: {}).",
                     self._config.combination, self._config.mode)
 
     async def stop(self) -> None:

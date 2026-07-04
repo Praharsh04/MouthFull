@@ -14,9 +14,8 @@ import threading
 import tkinter as tk
 from tkinter import ttk
 from typing import TYPE_CHECKING
-import time
 
-from voiceflow.core.events import StatusChanged, AudioLevelChanged
+from voiceflow.core.events import AudioLevelChanged, StatusChanged
 from voiceflow.core.logger import logger
 
 if TYPE_CHECKING:
@@ -36,7 +35,7 @@ class FloatingOverlay:
         self._thread: threading.Thread | None = None
         self._loop = asyncio.get_running_loop()
         self._ready_event = threading.Event()
-        
+
         self._current_status = "idle"
         self._anim_dots = 0
         self._anim_running = False
@@ -47,30 +46,30 @@ class FloatingOverlay:
         self._root.overrideredirect(True)
         self._root.attributes("-topmost", True)
         self._root.attributes("-alpha", 0.85)
-        
+
         width = 220
         height = 55
         x = (self._root.winfo_screenwidth() // 2) - (width // 2)
         y = self._root.winfo_screenheight() - height - 100
         self._root.geometry(f"{width}x{height}+{x}+{y}")
-        
+
         self._root.configure(bg="#2d2d2d")
-        
+
         # UI Elements
         frame = tk.Frame(self._root, bg="#2d2d2d")
         frame.pack(expand=True, fill="both", padx=10, pady=5)
-        
+
         self._label = tk.Label(frame, text="Ready", fg="white", bg="#2d2d2d", font=("Segoe UI", 12, "bold"))
         self._label.pack(side=tk.TOP, fill="x")
-        
+
         # Audio level / progress bar
         style = ttk.Style(self._root)
         style.theme_use("clam")
         style.configure("green.Horizontal.TProgressbar", foreground="green", background="#4dff4d")
-        
+
         self._progress = ttk.Progressbar(frame, style="green.Horizontal.TProgressbar", orient="horizontal", length=200, mode="determinate")
         self._progress.pack(side=tk.BOTTOM, fill="x", pady=(2, 0))
-        
+
         self._root.withdraw()
         self._ready_event.set()
         self._root.mainloop()
@@ -83,7 +82,7 @@ class FloatingOverlay:
         self._thread = threading.Thread(target=self._run_tk, daemon=True)
         self._thread.start()
         await asyncio.to_thread(self._ready_event.wait)
-        
+
         self._bus.subscribe(StatusChanged, self._on_status_changed)
         self._bus.subscribe(AudioLevelChanged, self._on_audio_level)
         logger.info("Floating overlay started.")
@@ -102,7 +101,7 @@ class FloatingOverlay:
     def _animate(self) -> None:
         if not self._anim_running or self._root is None or self._label is None:
             return
-            
+
         base_text = "Processing" if self._current_status == "processing" else "Refining"
         if self._current_status in ["processing", "refining"]:
             dots = "." * (self._anim_dots % 4)
@@ -118,7 +117,7 @@ class FloatingOverlay:
     async def _on_status_changed(self, event: StatusChanged) -> None:
         if self._root is None or self._label is None:
             return
-            
+
         def update_ui() -> None:
             self._current_status = event.status
             if event.status == "idle":
@@ -129,7 +128,7 @@ class FloatingOverlay:
             else:
                 self._root.deiconify()
                 self._label.config(text=event.message)
-                
+
                 # Colors
                 if event.status == "recording":
                     self._label.config(fg="#ff4d4d")
@@ -153,17 +152,17 @@ class FloatingOverlay:
                     self._progress.configure(value=0, mode="determinate")
                 else:
                     self._label.config(fg="white")
-                    
+
         self._root.after(0, update_ui)
 
     async def _on_audio_level(self, event: AudioLevelChanged) -> None:
         """Update the audio level meter during recording."""
         if self._root is None or self._progress is None or self._current_status != "recording":
             return
-            
+
         def update_meter():
             if self._current_status == "recording":
                 # event.level is 0.0 to 1.0
                 self._progress.configure(value=event.level * 100)
-                
+
         self._root.after(0, update_meter)

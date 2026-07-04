@@ -1,4 +1,4 @@
-"""llama-cpp-pyth"""Local llama.cpp engine."""
+"""Local llama.cpp engine."""
 
 from __future__ import annotations
 

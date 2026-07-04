@@ -45,13 +45,13 @@ class VoiceFlowApp:
         """Initialise all pipeline components and start the application."""
         logger.info("Starting {} pipeline…", __app_name__)
 
-        from voiceflow.input.hotkey import HotkeyListener
         from voiceflow.audio.capture import AudioCapture
         from voiceflow.audio.vad import VoiceActivityDetector
-        from voiceflow.ui import SystemTray, FloatingOverlay
-        from voiceflow.stt.service import STTService
-        from voiceflow.llm.service import LLMService
         from voiceflow.injection.injector import TextInjector
+        from voiceflow.input.hotkey import HotkeyListener
+        from voiceflow.llm.service import LLMService
+        from voiceflow.stt.service import STTService
+        from voiceflow.ui import FloatingOverlay, SystemTray
 
         self._hotkey = HotkeyListener(self._config.hotkey, self._bus)
         self._capture = AudioCapture(self._config.audio, self._bus)
@@ -73,7 +73,7 @@ class VoiceFlowApp:
 
         self._running = True
         logger.info("{} is ready — press your hotkey to dictate!", __app_name__)
-        
+
         from voiceflow.core.events import NotificationEvent
         await self._bus.emit(NotificationEvent(
             title="VoiceFlow Local",
@@ -120,7 +120,7 @@ class VoiceFlowApp:
                 pass
 
         try:
-            while True:
+            while not stop_event.is_set():
                 await asyncio.sleep(1) # Keep loop running on Windows to allow KeyboardInterrupt
         except (KeyboardInterrupt, SystemExit):
             pass

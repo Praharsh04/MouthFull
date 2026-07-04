@@ -10,13 +10,13 @@ from __future__ import annotations
 
 import asyncio
 import threading
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import pystray
 from PIL import Image, ImageDraw
 from pystray import MenuItem as item
 
-from voiceflow.core.events import StatusChanged, NotificationEvent
+from voiceflow.core.events import NotificationEvent, StatusChanged
 from voiceflow.core.logger import logger
 from voiceflow.ui.settings import SettingsWindow
 
@@ -52,8 +52,9 @@ class SystemTray:
         """Show the About dialog."""
         import tkinter as tk
         from tkinter import messagebox
+
         from voiceflow import __version__
-        
+
         root = tk.Tk()
         root.withdraw()
         msg = f"VoiceFlow Local v{__version__}\n\n"
@@ -78,9 +79,9 @@ class SystemTray:
             item("Quit", self._on_quit),
         )
         self._icon = pystray.Icon(
-            "voiceflow", 
-            self._create_image("gray"), 
-            "VoiceFlow Local", 
+            "voiceflow",
+            self._create_image("gray"),
+            "VoiceFlow Local",
             menu=menu
         )
         self._icon.run()
@@ -92,10 +93,10 @@ class SystemTray:
 
         self._thread = threading.Thread(target=self._run_tray, daemon=True)
         self._thread.start()
-        
+
         # Wait a moment for icon to initialize
         await asyncio.sleep(0.2)
-        
+
         self._bus.subscribe(StatusChanged, self._on_status_changed)
         self._bus.subscribe(NotificationEvent, self._on_notification)
         logger.info("SystemTray started.")
@@ -114,7 +115,7 @@ class SystemTray:
         """Update tray icon color based on status."""
         if self._icon is None:
             return
-            
+
         color_map = {
             "idle": "gray",
             "recording": "red",

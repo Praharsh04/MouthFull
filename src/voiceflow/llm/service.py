@@ -9,10 +9,10 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING
 
-from voiceflow.core.events import TranscriptReady, RefinedTextReady, StatusChanged, PipelineError
+from voiceflow.core.config import APIKeys
+from voiceflow.core.events import PipelineError, RefinedTextReady, StatusChanged, TranscriptReady
 from voiceflow.core.logger import logger
 from voiceflow.llm.providers import get_provider
-from voiceflow.core.config import APIKeys
 
 if TYPE_CHECKING:
     from voiceflow.core.config import LLMConfig
@@ -65,24 +65,24 @@ class LLMService:
             # Pass-through if disabled
             await self._bus.emit(RefinedTextReady(text=event.text))
             return
-            
+
         logger.info("Refining transcript: '{}'", event.text)
         await self._bus.emit(StatusChanged(status="processing", message="Refining..."))
-        
+
         try:
             refined_text = await self._engine.refine(event.text)
             logger.info("Refined text: '{}'", refined_text)
-            
+
             if refined_text.strip():
                 await self._bus.emit(RefinedTextReady(text=refined_text))
             else:
                 logger.warning("Empty refinement result, falling back to raw.")
                 await self._bus.emit(RefinedTextReady(text=event.text))
-                
+
         except Exception as e:
             logger.error("LLM refinement failed: {}", e)
             await self._bus.emit(PipelineError(stage="llm_refine", error=e))
             await self._bus.emit(StatusChanged(status="error", message="LLM Error"))
-            
+
             # Fallback to unrefined text
             await self._bus.emit(RefinedTextReady(text=event.text))

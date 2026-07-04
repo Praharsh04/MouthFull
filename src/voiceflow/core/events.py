@@ -13,9 +13,9 @@ Usage::
 
 from __future__ import annotations
 
-import asyncio
-from dataclasses import dataclass, field
-from typing import Any, Callable, Coroutine, TypeVar
+from collections.abc import Callable, Coroutine
+from dataclasses import dataclass
+from typing import Any, TypeVar
 
 import numpy as np
 from numpy.typing import NDArray
@@ -70,7 +70,7 @@ class RefinedTextReady:
 @dataclass(frozen=True, slots=True)
 class PipelineError:
     """Emitted when an error occurs in the pipeline."""
-    
+
     stage: str
     error: Exception
 
@@ -78,14 +78,14 @@ class PipelineError:
 @dataclass(frozen=True, slots=True)
 class AudioLevelChanged:
     """Emitted during audio capture to indicate microphone volume (0.0 to 1.0)."""
-    
+
     level: float
-    
+
 
 @dataclass(frozen=True, slots=True)
 class NotificationEvent:
     """Emitted to trigger an OS-level notification."""
-    
+
     title: str
     message: str
 

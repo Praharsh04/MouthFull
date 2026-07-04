@@ -9,10 +9,11 @@ from __future__ import annotations
 import asyncio
 import time
 from typing import TYPE_CHECKING
+
 import pyperclip
 from pynput.keyboard import Controller, Key
 
-from voiceflow.core.events import RefinedTextReady, StatusChanged, PipelineError
+from voiceflow.core.events import PipelineError, RefinedTextReady, StatusChanged
 from voiceflow.core.logger import logger
 
 if TYPE_CHECKING:
@@ -46,7 +47,7 @@ class TextInjector:
             return
 
         logger.info("Injecting text: '{}'", text)
-        
+
         try:
             # Run injection synchronously in a background thread to avoid blocking asyncio
             await asyncio.to_thread(self._inject_sync, text)
@@ -57,8 +58,27 @@ class TextInjector:
             await self._bus.emit(StatusChanged(status="error", message="Injection Error"))
 
     def _inject_sync(self, text: str) -> None:
-        """Synchronous method to inject text via clipboard."""
-        
+        """Synchronous method to inject text."""
+        if self._config.method == "typewrite":
+            self._typewrite(text)
+        else:
+            self._clipboard_inject(text)
+
+    def _typewrite(self, text: str) -> None:
+        """Inject text by simulating keystrokes."""
+        delay = self._config.keystroke_delay
+        for char in text:
+            # Handle newlines explicitly
+            if char == '\n':
+                self._keyboard.press(Key.enter)
+                self._keyboard.release(Key.enter)
+            else:
+                self._keyboard.type(char)
+            if delay > 0:
+                time.sleep(delay)
+
+    def _clipboard_inject(self, text: str) -> None:
+        """Inject text via clipboard (fast but overwrites clipboard temporarily)."""
         # 1. Save current clipboard
         old_clipboard = ""
         try:
@@ -73,21 +93,21 @@ class TextInjector:
             raise RuntimeError(f"Failed to copy to clipboard: {e}") from e
 
         # 3. Simulate Ctrl+V
-        # Wait a tiny bit to ensure the clipboard is registered by the OS
         time.sleep(0.05)
-        
+
         try:
             with self._keyboard.pressed(Key.ctrl):
                 self._keyboard.press('v')
                 self._keyboard.release('v')
         except Exception as e:
             raise RuntimeError(f"Failed to simulate keystrokes: {e}") from e
-            
-        # 4. Wait for the app to consume the paste before restoring clipboard
+
+        # 4. Wait for the app to consume the paste
         time.sleep(0.1)
 
         # 5. Restore old clipboard
         try:
-            pyperclip.copy(old_clipboard)
+            if old_clipboard:
+                pyperclip.copy(old_clipboard)
         except Exception as e:
             logger.warning("Could not restore old clipboard: {}", e)

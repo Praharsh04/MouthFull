@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from voiceflow.llm.providers.base_api import APIProviderBase
 from voiceflow.core.exceptions import LLMInferenceError
+from voiceflow.llm.providers.base_api import APIProviderBase
 
 
 class GeminiProvider(APIProviderBase):
@@ -12,16 +12,16 @@ class GeminiProvider(APIProviderBase):
     async def refine(self, raw_text: str) -> str:
         if not self._client:
             raise LLMInferenceError("Gemini client not loaded.")
-            
+
         api_key = self._api_keys.gemini_api_key
         if not api_key:
             raise LLMInferenceError("Gemini API key is missing.")
-            
+
         # Default: gemini-1.5-flash
         model = self._config.model if self._config.model else "gemini-1.5-flash"
         base_url = self._config.api_base or "https://generativelanguage.googleapis.com/v1beta"
         url = f"{base_url.rstrip('/')}/models/{model}:generateContent?key={api_key}"
-        
+
         payload = {
             "systemInstruction": {
                 "parts": [{"text": self._build_system_prompt()}]
@@ -34,7 +34,7 @@ class GeminiProvider(APIProviderBase):
                 "maxOutputTokens": self._config.max_tokens,
             }
         }
-        
+
         try:
             response = await self._client.post(url, json=payload)
             response.raise_for_status()
