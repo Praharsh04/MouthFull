@@ -25,7 +25,7 @@ class ToggleSwitch(QAbstractButton):
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
-        self._anim = QPropertyAnimation(self, b"pos", self)
+        self._anim = QPropertyAnimation(self, b"switch_pos", self)
         self._anim.setDuration(160)
         self._anim.setEasingCurve(QEasingCurve.Type.OutCubic)
 
@@ -48,7 +48,7 @@ class ToggleSwitch(QAbstractButton):
         self._pos = value
         self.update()
 
-    pos = Property(float, getPos, setPos)
+    switch_pos = Property(float, getPos, setPos)
 
     def paintEvent(self, event):
         p = QPainter(self)

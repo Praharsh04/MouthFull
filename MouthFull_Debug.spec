@@ -10,7 +10,7 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    excludes=['matplotlib', 'IPython', 'tkinter', 'pandas', 'scipy', 'jupyter', 'PySide6.QtWebEngine', 'PySide6.QtWebEngineCore', 'PySide6.QtWebEngineWidgets', 'PySide6.QtQml', 'PySide6.QtBluetooth', 'torch.testing', 'unittest', 'pydoc'],
     noarchive=False,
     optimize=0,
 )

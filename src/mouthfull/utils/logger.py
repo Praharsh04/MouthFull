@@ -42,9 +42,9 @@ def setup_logging(config: AppConfig) -> None:
                 "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
                 "<level>{level: <8}</level> | "
                 "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> | "
-                "<level>{message}</level>"
-            ),
+                ),
             colorize=True,
+            enqueue=True,
         )
 
     # File sink — optional.
@@ -63,6 +63,7 @@ def setup_logging(config: AppConfig) -> None:
             rotation=log_cfg.rotation,
             retention=log_cfg.retention,
             encoding="utf-8",
+            enqueue=True,
         )
 
     logger.info("Logging initialised (level={})", log_cfg.level)

@@ -86,9 +86,15 @@ class APIKeys(BaseSettings):
 
 
 class LLMConfig(BaseModel):
-    """LLM refinement engine settings."""
+    """LLM refinement engine settings.
 
-    enabled: bool = False
+    Note: The ``enabled`` field is deprecated and ignored.  Whether the LLM
+    is engaged is now controlled exclusively by ``PromptProcessorConfig.enabled``.
+    The field is retained so that existing ``config.yaml`` files continue to
+    parse without errors.
+    """
+
+    enabled: bool = True  # Deprecated — kept for YAML backward compat only
     provider: str = "ollama"  # e.g., llamacpp, ollama, openai, anthropic, gemini, openrouter, custom
     model: str = "llama3"
     api_base: Optional[str] = None  # Used for custom APIs or overriding defaults
@@ -115,6 +121,7 @@ class InjectionConfig(BaseModel):
 
     method: Literal["typewrite", "clipboard"] = "clipboard"
     keystroke_delay: float = Field(default=0.01, ge=0.0, le=1.0)
+    auto_enter: bool = False
 
 
 class UIConfig(BaseModel):
@@ -161,11 +168,17 @@ class LoggingConfig(BaseModel):
         return upper
 
 
+class AppPromptEntry(BaseModel):
+    """Entry for an application-specific prompt."""
+    name: str
+    prompt: str
+
 class PromptProcessorConfig(BaseModel):
     """Configuration for processing raw transcripts into LLM prompts."""
 
     enabled: bool = False
-    template: str = "Please process the following dictated text carefully:\n\n{{input}}\n\nProvide the refined text below."
+    default_prompt: str = "Process normally.\n\n{{input}}"
+    app_prompts: dict[str, AppPromptEntry] = Field(default_factory=dict)
 
 
 

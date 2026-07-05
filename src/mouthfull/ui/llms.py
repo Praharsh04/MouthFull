@@ -26,7 +26,7 @@ from PySide6.QtWidgets import (
 
 from mouthfull.ui.theme import Colors
 from mouthfull.ui.widgets import Card, StatusBadge
-from mouthfull.ui.widgets.toggle_switch import ToggleSwitch
+
 
 CONN_META = {
     "untested": ("neutral", "Not Tested"),
@@ -60,8 +60,8 @@ AVAILABLE_PROVIDERS = [
     {
         "id": "gemini",
         "name": "Google Gemini",
-        "desc": "Gemini 1.5 Pro / Flash via API",
-        "models": ["gemini-1.5-pro-latest", "gemini-1.5-flash-latest"],
+        "desc": "Gemini 3.5 Flash / 3.1 Flash Lite via API",
+        "models": ["gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-1.5-pro-latest", "gemini-1.5-flash-latest"],
         "requires_key": True
     },
     {
@@ -166,7 +166,7 @@ class LLMProvidersPage(QWidget):
     on_api_key_changed = Signal(str, str)
     on_model_variant_changed = Signal(str, str)
     on_save_clicked = Signal(str)
-    on_enable_toggled = Signal(bool)
+
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -191,16 +191,9 @@ class LLMProvidersPage(QWidget):
         subtitle.setStyleSheet(f"color: {Colors.TEXT_MUTED}; font-size: 11px;")
         outer.addWidget(subtitle)
 
-        toggle_row = QHBoxLayout()
-        self.enable_toggle = ToggleSwitch()
-        toggle_label = QLabel("Enable LLM Provider")
-        toggle_label.setStyleSheet("color: #e0e0e0; font-size: 16px; font-weight: 500;")
-        toggle_row.addWidget(self.enable_toggle)
-        toggle_row.addWidget(toggle_label)
-        toggle_row.addStretch()
-        outer.addLayout(toggle_row)
-        
-        self.enable_toggle.toggled_signal.connect(self.on_enable_toggled.emit)
+        info_label = QLabel("The LLM is automatically used when the Prompt Processor is enabled.")
+        info_label.setStyleSheet(f"color: {Colors.TEXT_MUTED}; font-size: 10.5px; font-style: italic;")
+        outer.addWidget(info_label)
 
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)

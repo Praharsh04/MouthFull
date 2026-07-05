@@ -73,6 +73,12 @@ class GeneralTab(QWidget):
                                    "Start MouthFull AI automatically when you sign in."))
         body.addWidget(_divider())
 
+        self.auto_enter_toggle = ToggleSwitch(checked=False)
+        self.auto_enter_toggle.toggled_signal.connect(lambda v: self.setting_changed.emit("auto_enter", v))
+        body.addWidget(SettingRow("Auto Enter after insertion", self.auto_enter_toggle,
+                                   "Automatically simulate the Enter key to send messages after text is injected."))
+        body.addWidget(_divider())
+
         self.tray_toggle = ToggleSwitch(checked=True)
         self.tray_toggle.toggled_signal.connect(lambda v: self.setting_changed.emit("minimize_to_tray", v))
         body.addWidget(SettingRow("Minimize to system tray", self.tray_toggle,
@@ -281,6 +287,7 @@ class SettingsPage(QWidget):
         """Reflect a backend-driven setting change in the appropriate control."""
         mapping = {
             "launch_at_startup": self.general_tab.launch_toggle,
+            "auto_enter": self.general_tab.auto_enter_toggle,
             "minimize_to_tray": self.general_tab.tray_toggle,
             "show_floating_orb": self.general_tab.orb_toggle,
             "auto_check_updates": self.general_tab.updates_toggle,

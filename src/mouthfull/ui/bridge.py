@@ -81,10 +81,10 @@ class UIBridge(QObject):
         self.window.llms_page.on_api_key_changed.connect(self._on_llm_api_key_changed)
         self.window.llms_page.on_model_variant_changed.connect(self._on_llm_model_changed)
         self.window.llms_page.on_save_clicked.connect(self._on_llm_save)
-        self.window.llms_page.on_enable_toggled.connect(self._on_llm_enabled_toggled)
+
 
         self.window.prompt_page.on_settings_changed.connect(self._on_prompt_settings_changed)
-
+        self.window.prompt_page.on_add_current_app.connect(self._on_add_current_app)
         self.window.models_page.on_model_install_clicked.connect(self._on_stt_model_install)
         self.window.models_page.on_model_selected.connect(self._on_stt_model_selected)
         self.window.models_page.on_model_remove_clicked.connect(self._on_stt_model_remove)
@@ -203,6 +203,8 @@ class UIBridge(QObject):
         if key == "launch_at_startup":
             config.ui.startup_on_windows = value
             self._set_windows_startup(value)
+        elif key == "auto_enter":
+            config.injection.auto_enter = value
         elif key == "minimize_to_tray":
             config.ui.minimize_to_tray = value
         elif key == "show_floating_orb":
@@ -273,6 +275,7 @@ class UIBridge(QObject):
         config = self.app._config
         page = self.window.settings_page
         page.set_setting("launch_at_startup", config.ui.startup_on_windows)
+        page.set_setting("auto_enter", config.injection.auto_enter)
         page.set_setting("minimize_to_tray", config.ui.minimize_to_tray)
         page.set_setting("show_floating_orb", config.ui.show_orb)
         page.set_setting("auto_check_updates", config.ui.auto_check_updates)
@@ -420,7 +423,6 @@ class UIBridge(QObject):
             providers_state.append(p_dict)
             
         self.window.llms_page.update_providers(providers_state)
-        self.window.llms_page.enable_toggle.set_checked_silent(self.app._config.llm.enabled)
 
     def _on_llm_provider_selected(self, provider_id: str):
         from mouthfull.configs.config import save_config
@@ -429,11 +431,7 @@ class UIBridge(QObject):
         self.window.llms_page.set_active_provider(provider_id)
         asyncio.run_coroutine_threadsafe(self._restart_llm(), self.loop)
         
-    def _on_llm_enabled_toggled(self, checked: bool):
-        from mouthfull.configs.config import save_config
-        self.app._config.llm.enabled = checked
-        save_config(self.app._config)
-        asyncio.run_coroutine_threadsafe(self._restart_llm(), self.loop)
+
 
     def _on_llm_model_changed(self, provider_id: str, model_name: str):
         from mouthfull.configs.config import save_config
@@ -539,12 +537,34 @@ class UIBridge(QObject):
             self.notification_requested.emit("Startup Setting Failed", str(e), "error")
 
     def _on_prompt_settings_changed(self, settings_dict: dict):
-        from mouthfull.configs.config import save_config
-        self.app._config.prompt_processor.enabled = settings_dict.get("enabled", False)
-        self.app._config.prompt_processor.template = settings_dict.get("template", "")
+        from mouthfull.configs.config import save_config, AppPromptEntry
+        was_enabled = self.app._config.prompt_processor.enabled
+        now_enabled = settings_dict.get("enabled", False)
+        self.app._config.prompt_processor.enabled = now_enabled
+        self.app._config.prompt_processor.default_prompt = settings_dict.get("default_prompt", "Process normally.\n\n{{input}}")
+        
+        # Convert dictionaries to AppPromptEntry
+        app_prompts = settings_dict.get("app_prompts", {})
+        self.app._config.prompt_processor.app_prompts = {
+            k: AppPromptEntry(name=v["name"], prompt=v["prompt"])
+            for k, v in app_prompts.items()
+        }
+        
         save_config(self.app._config)
         asyncio.run_coroutine_threadsafe(self._restart_prompt_processor(), self.loop)
+        # If prompt processor was just toggled, also restart LLM to engage/disengage it
+        if was_enabled != now_enabled:
+            asyncio.run_coroutine_threadsafe(self._restart_llm(), self.loop)
         self.notification_requested.emit("Saved", "Prompt Processor settings saved.", "success")
+
+    def _on_add_current_app(self):
+        from mouthfull.utils.app_context import get_active_app_info
+        process_name, display_name = get_active_app_info()
+        if process_name and display_name:
+            self.window.prompt_page.add_app_prompt(process_name, display_name)
+            self.notification_requested.emit("App Added", f"Added {display_name} to Application Prompts.", "success")
+        else:
+            self.notification_requested.emit("Detection Failed", "Could not detect active application.", "error")
 
     async def _restart_prompt_processor(self):
         if hasattr(self.app, "_prompt"):

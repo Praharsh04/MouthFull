@@ -59,7 +59,7 @@ class VoiceActivityDetector:
         """
         if not self._config.enabled:
             # VAD disabled; forward audio directly.
-            await self._bus.emit(SpeechDetected(audio=event.audio, sample_rate=event.sample_rate))
+            await self._bus.emit(SpeechDetected(audio=event.audio, sample_rate=event.sample_rate, app_context=event.app_context))
             return
 
         # If we have a loaded ONNX session, use it (placeholder – actual inference omitted for brevity).
@@ -72,16 +72,18 @@ class VoiceActivityDetector:
                 probs = self._session.run(None, {self._session.get_inputs()[0].name: wav})[0]
                 # Simple heuristic: speech if any probability exceeds threshold.
                 if (probs > self._config.threshold).any():
-                    await self._bus.emit(SpeechDetected(audio=event.audio, sample_rate=event.sample_rate))
+                    await self._bus.emit(SpeechDetected(audio=event.audio, sample_rate=event.sample_rate, app_context=event.app_context))
                 else:
                     logger.debug("VAD filtered out non‑speech audio (model).")
                 return
             except Exception as e:
                 logger.warning("Silero VAD inference failed (%s); falling back to RMS.", e)
 
-        # RMS based fallback detection.
+        # RMS based fallback detection. (Scale RMS by 10 to match UI level)
         rms = float(np.sqrt(np.mean(event.audio ** 2)))
-        if rms >= self._config.threshold:
-            await self._bus.emit(SpeechDetected(audio=event.audio, sample_rate=event.sample_rate))
-        else:
-            logger.debug("VAD filtered out non‑speech audio (RMS threshold).")
+        normalized_level = min(1.0, rms * 10.0)
+        
+        # Always pass to STT. Let STT (which has native VAD) decide if it's silence.
+        # This prevents quiet microphones from being completely ignored.
+        logger.info("VAD processed audio (normalized level: {:.2f}). Passing to STT.", normalized_level)
+        await self._bus.emit(SpeechDetected(audio=event.audio, sample_rate=event.sample_rate, app_context=event.app_context))

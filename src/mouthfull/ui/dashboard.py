@@ -18,10 +18,10 @@ Methods (backend -> UI):
     dashboard.add_activity_entry(text, kind, timestamp)
     dashboard.set_backend_connected(bool)
 """
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, Signal, QPropertyAnimation, QEasingCurve, QSequentialAnimationGroup, QPauseAnimation
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QGridLayout,
-    QListWidget, QListWidgetItem, QScrollArea
+    QListWidget, QListWidgetItem, QScrollArea, QGraphicsOpacityEffect
 )
 
 from mouthfull.ui.theme import Colors
@@ -85,6 +85,11 @@ class DashboardPage(QWidget):
 
         self.big_label = QLabel("Ready when you are")
         self.big_label.setStyleSheet(f"font-size: 18px; font-weight: 600; color: {Colors.TEXT_PRIMARY};")
+        # Opacity effect for animated text transitions (TASK 3)
+        self._big_label_opacity = QGraphicsOpacityEffect(self.big_label)
+        self._big_label_opacity.setOpacity(1.0)
+        self.big_label.setGraphicsEffect(self._big_label_opacity)
+        self._status_anim_group: QSequentialAnimationGroup | None = None
         left_col.addWidget(self.big_label)
 
         self.hotkey_hint = QLabel("Press  Ctrl+Shift+Space  or click Start to begin dictating")
@@ -179,8 +184,64 @@ class DashboardPage(QWidget):
             "speaking": "Injecting text…",
             "error": "Something went wrong",
         }
-        self.big_label.setText(messages.get(state, "Ready when you are"))
+        new_text = messages.get(state, "Ready when you are")
         self.meter.set_active(state == "listening")
+
+        # Animated text swap: fade-out -> change text -> fade-in
+        if self._status_anim_group is not None:
+            self._status_anim_group.stop()
+
+        self._status_anim_group = QSequentialAnimationGroup(self)
+
+        fade_out = QPropertyAnimation(self._big_label_opacity, b"opacity")
+        fade_out.setDuration(120)
+        fade_out.setStartValue(1.0)
+        fade_out.setEndValue(0.0)
+        fade_out.setEasingCurve(QEasingCurve.Type.InCubic)
+
+        fade_in = QPropertyAnimation(self._big_label_opacity, b"opacity")
+        fade_in.setDuration(160)
+        fade_in.setStartValue(0.0)
+        fade_in.setEndValue(1.0)
+        fade_in.setEasingCurve(QEasingCurve.Type.OutCubic)
+
+        self._status_anim_group.addAnimation(fade_out)
+        self._status_anim_group.addPause(30)
+        self._status_anim_group.addAnimation(fade_in)
+
+        # Update the label text at the midpoint (after fade-out finishes)
+        self._pending_status_text = new_text
+        fade_out.finished.connect(self._finish_status_update)
+
+        self._status_anim_group.start()
+
+        # Pulse the toggle button when entering 'listening'
+        if state == "listening":
+            self._pulse_toggle_btn()
+
+    def _finish_status_update(self):
+        """Set the big_label text at the animation midpoint (between fade-out and fade-in)."""
+        self.big_label.setText(self._pending_status_text)
+
+    def _pulse_toggle_btn(self):
+        """Brief border-color flash on the toggle button to draw attention."""
+        original_ss = self.toggle_btn.styleSheet()
+        pulse_ss = (
+            f"border: 2px solid {Colors.ACCENT}; "
+            f"background-color: {Colors.ACCENT_SOFT};"
+        )
+
+        group = QSequentialAnimationGroup(self.toggle_btn)
+
+        # We use a pause-based approach: apply highlight -> wait -> revert
+        pause = QPauseAnimation(350)
+        group.addAnimation(pause)
+        group.finished.connect(
+            lambda: self.toggle_btn.setStyleSheet(original_ss)
+        )
+
+        self.toggle_btn.setStyleSheet(pulse_ss)
+        group.start()
 
     def update_audio_level(self, level: float):
         self.meter.update_audio_level(level)

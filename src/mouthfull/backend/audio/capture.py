@@ -13,7 +13,6 @@ import queue
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
-import sounddevice as sd
 from numpy.typing import NDArray
 
 from mouthfull.utils.events import (
@@ -41,8 +40,11 @@ class AudioCapture:
 
         self._recording = False
         self._audio_queue: queue.Queue[NDArray[np.float32]] = queue.Queue()
-        self._stream: sd.InputStream | None = None
+        self._stream: Any | None = None
         self._loop = asyncio.get_running_loop()
+        self._replay_buffer: list[NDArray[np.float32]] = []
+        self._max_replay: int = 5
+        self._current_app_context: tuple[str, str] | None = None
 
     async def start(self) -> None:
         """Subscribe to hotkey events to control recording."""
@@ -72,6 +74,8 @@ class AudioCapture:
 
     async def _on_hotkey_pressed(self, event: HotkeyPressed) -> None:
         if not self._recording:
+            from mouthfull.utils.app_context import get_active_app_info
+            self._current_app_context = get_active_app_info()
             await self._start_recording()
 
     async def _on_hotkey_released(self, event: HotkeyReleased) -> None:
@@ -79,7 +83,7 @@ class AudioCapture:
             await self._stop_recording()
 
     def _audio_callback(
-        self, indata: NDArray[np.float32], frames: int, time: Any, status: sd.CallbackFlags
+        self, indata: NDArray[np.float32], frames: int, time: Any, status: Any
     ) -> None:
         """Called by sounddevice for each audio block."""
         if status:
@@ -109,6 +113,7 @@ class AudioCapture:
             self._audio_queue.get_nowait()
 
         try:
+            import sounddevice as sd
             self._stream = sd.InputStream(
                 device=self._config.device_index,
                 samplerate=self._config.sample_rate,
@@ -163,21 +168,32 @@ class AudioCapture:
         if audio_data.ndim > 1:
             audio_data = audio_data[:, 0]
 
+        # Store a copy in the replay buffer for future retry support
+        self._replay_buffer.append(audio_data.copy())
+        if len(self._replay_buffer) > self._max_replay:
+            self._replay_buffer.pop(0)
+
         logger.info("Recording stopped. Captured {:.2f}s of audio.", len(audio_data) / self._config.sample_rate)
 
         if getattr(self._config, 'save_audio', False):
             from datetime import datetime
             from pathlib import Path
-
             import soundfile as sf
 
             Path("logs").mkdir(exist_ok=True)
             filename = f"logs/debug_capture_{datetime.now().strftime('%Y%m%d_%H%M%S')}.wav"
-            try:
-                sf.write(filename, audio_data, self._config.sample_rate)
-                logger.info("Saved debug audio to {}", filename)
-            except Exception as e:
-                logger.error("Failed to save debug audio: {}", e)
+            
+            def save_debug_audio(file_path: str, data: NDArray[np.float32], rate: int):
+                try:
+                    sf.write(file_path, data, rate)
+                    logger.info("Saved debug audio to {}", file_path)
+                except Exception as e:
+                    logger.error("Failed to save debug audio: {}", e)
+
+            # Fire and forget debug audio save
+            asyncio.create_task(asyncio.to_thread(
+                save_debug_audio, filename, audio_data.copy(), self._config.sample_rate
+            ))
 
         # Tell the UI we are processing
         asyncio.run_coroutine_threadsafe(
@@ -186,8 +202,25 @@ class AudioCapture:
         )
 
         # Emit the captured audio
-        await self._bus.emit(AudioCaptured(audio=audio_data, sample_rate=self._config.sample_rate))
+        await self._bus.emit(AudioCaptured(
+            audio=audio_data, 
+            sample_rate=self._config.sample_rate,
+            app_context=self._current_app_context
+        ))
         
         duration_ms = (len(audio_data) / self._config.sample_rate) * 1000
         from mouthfull.utils.events import PipelineTiming
         await self._bus.emit(PipelineTiming(stage="capture", duration_ms=duration_ms))
+
+    def get_last_audio(self, index: int = 0) -> NDArray[np.float32] | None:
+        """Return a previously captured audio segment from the replay buffer.
+
+        Args:
+            index: 0 for the most recent capture, 1 for the one before, etc.
+
+        Returns:
+            The audio data as a numpy array, or None if the index is out of range.
+        """
+        if index < 0 or index >= len(self._replay_buffer):
+            return None
+        return self._replay_buffer[-(index + 1)]

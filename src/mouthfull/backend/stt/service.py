@@ -30,6 +30,8 @@ class STTService:
         self._engine: STTEngine | None = None
         self._loop = asyncio.get_running_loop()
         self._aborted = False
+        self._bg_loop: asyncio.AbstractEventLoop | None = None
+        self._bg_thread: threading.Thread | None = None
 
     def _create_engine(self) -> STTEngine:
         if self._config.engine == "faster_whisper":
@@ -40,16 +42,41 @@ class STTService:
         else:
             raise ValueError(f"Unknown STT engine: {self._config.engine}")
 
+    def _run_bg_loop(self, loop: asyncio.AbstractEventLoop):
+        asyncio.set_event_loop(loop)
+        loop.run_forever()
+
     async def start(self) -> None:
         """Initialize the engine and subscribe to events."""
+        import threading
+        
+        self._bg_loop = asyncio.new_event_loop()
+        self._bg_thread = threading.Thread(target=self._run_bg_loop, args=(self._bg_loop,), daemon=True)
+        self._bg_thread.start()
+        
         logger.info("Initializing STT Engine: {}", self._config.engine)
         self._engine = self._create_engine()
         try:
-            await self._engine.load_model()
+            # Load model in the background loop
+            future = asyncio.run_coroutine_threadsafe(self._engine.load_model(), self._bg_loop)
+            await asyncio.wrap_future(future)
         except Exception as e:
-            logger.exception("Failed to load STT model: {}", e)
-            await self._bus.emit(PipelineError(stage="stt_load", error=e))
-            return
+            logger.warning("Failed to load STT model ({}): {}", self._config.engine, e)
+            if self._config.engine == "parakeet":
+                logger.info("Automatically falling back to faster_whisper STT engine...")
+                self._config.engine = "faster_whisper"
+                self._engine = self._create_engine()
+                try:
+                    future = asyncio.run_coroutine_threadsafe(self._engine.load_model(), self._bg_loop)
+                    await asyncio.wrap_future(future)
+                except Exception as fallback_err:
+                    logger.exception("Fallback STT model also failed to load: {}", fallback_err)
+                    await self._bus.emit(PipelineError(stage="stt_load", error=fallback_err))
+                    return
+            else:
+                logger.exception("Fatal STT model load error.")
+                await self._bus.emit(PipelineError(stage="stt_load", error=e))
+                return
 
         from mouthfull.utils.events import PipelineAbort
         self._bus.subscribe(SpeechDetected, self._on_speech_detected)
@@ -61,9 +88,17 @@ class STTService:
         from mouthfull.utils.events import PipelineAbort
         self._bus.unsubscribe(SpeechDetected, self._on_speech_detected)
         self._bus.unsubscribe(PipelineAbort, self._on_abort)
-        if self._engine:
-            await self._engine.unload_model()
+        if self._engine and self._bg_loop:
+            future = asyncio.run_coroutine_threadsafe(self._engine.unload_model(), self._bg_loop)
+            await asyncio.wrap_future(future)
             self._engine = None
+            
+        if self._bg_loop:
+            self._bg_loop.call_soon_threadsafe(self._bg_loop.stop)
+            if self._bg_thread:
+                self._bg_thread.join(timeout=1.0)
+            self._bg_loop.close()
+            self._bg_loop = None
         logger.info("STT Service stopped.")
 
     async def _on_abort(self, event) -> None:
@@ -82,10 +117,13 @@ class STTService:
         try:
             import time
             start_time = time.perf_counter()
-            # Run transcription in a thread to not block asyncio if the engine is synchronous
-            transcript = await asyncio.to_thread(
-                self._run_transcription_sync, event.audio, event.sample_rate
+            
+            # Submit to persistent background loop
+            future = asyncio.run_coroutine_threadsafe(
+                self._engine.transcribe(event.audio, event.sample_rate),
+                self._bg_loop
             )
+            transcript = await asyncio.wrap_future(future)
             
             duration_ms = (time.perf_counter() - start_time) * 1000
             from mouthfull.utils.events import PipelineTiming
@@ -98,7 +136,7 @@ class STTService:
             logger.info("Transcription: {}", transcript)
 
             if transcript.strip():
-                await self._bus.emit(TranscriptReady(text=transcript))
+                await self._bus.emit(TranscriptReady(text=transcript, app_context=event.app_context))
             else:
                 logger.warning("Empty transcription result.")
                 await self._bus.emit(StatusChanged(status="idle", message=""))
@@ -108,12 +146,4 @@ class STTService:
             await self._bus.emit(PipelineError(stage="stt_transcribe", error=e))
             await self._bus.emit(StatusChanged(status="error", message="STT Error"))
 
-    def _run_transcription_sync(self, audio, sample_rate) -> str:
-        """Wrapper to run the async/sync transcribe method in a thread safely.
-        Because STTEngine.transcribe is marked as async, we use a new event loop.
-        """
-        loop = asyncio.new_event_loop()
-        try:
-            return loop.run_until_complete(self._engine.transcribe(audio, sample_rate))
-        finally:
-            loop.close()
+

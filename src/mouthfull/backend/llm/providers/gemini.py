@@ -17,8 +17,8 @@ class GeminiProvider(APIProviderBase):
         if not api_key:
             raise LLMInferenceError("Gemini API key is missing.")
 
-        # Default: gemini-1.5-flash
-        model = self._config.model if self._config.model else "gemini-1.5-flash"
+        # Default: gemini-3.5-flash
+        model = self._config.model if self._config.model else "gemini-3.5-flash"
         base_url = self._config.api_base or "https://generativelanguage.googleapis.com/v1beta"
         url = f"{base_url.rstrip('/')}/models/{model}:generateContent?key={api_key}"
 

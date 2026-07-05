@@ -24,6 +24,7 @@ def build(config: str):
         f"--workpath={build_dir}",
         f"--distpath={dist_dir}",
         "--add-data=src/mouthfull/assets;mouthfull/assets",
+        "--icon=src/mouthfull/assets/logo.ico",
         "--exclude-module=matplotlib",
         "--exclude-module=IPython",
         "--exclude-module=tkinter",
@@ -35,7 +36,7 @@ def build(config: str):
         "--exclude-module=PySide6.QtWebEngineWidgets",
         "--exclude-module=PySide6.QtQml",
         "--exclude-module=PySide6.QtBluetooth",
-        "--exclude-module=torch.testing",
+        "--exclude-module=torch.testing", "--collect-data=faster_whisper",
         # Ignore bulky unnecessary packages if any, PyInstaller handles imports
     ]
     

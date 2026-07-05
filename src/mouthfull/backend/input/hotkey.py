@@ -51,7 +51,10 @@ class HotkeyListener:
                 self._is_recording = True
                 logger.debug("Hotkey activated (Toggle ON).")
                 asyncio.run_coroutine_threadsafe(self._bus.emit(HotkeyPressed()), self._loop)
-            # If already recording, we do nothing. They must press Enter to stop.
+            else:
+                self._is_recording = False
+                logger.debug("Hotkey activated (Toggle OFF).")
+                asyncio.run_coroutine_threadsafe(self._bus.emit(HotkeyReleased()), self._loop)
         else:
             if not self._active:
                 self._active = True
@@ -71,7 +74,7 @@ class HotkeyListener:
             if hasattr(self, "_is_recording"): self._is_recording = False
             return
             
-        # If in toggle mode and recording, Enter stops it
+        # If in toggle mode and recording, Enter stops it (User requested behavior)
         if self._config.mode == "toggle" and getattr(self, "_is_recording", False) and key == keyboard.Key.enter:
             logger.info("Enter pressed. Stopping toggle recording.")
             self._is_recording = False

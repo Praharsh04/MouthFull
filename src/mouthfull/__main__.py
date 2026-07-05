@@ -38,6 +38,12 @@ def run_backend(app_instance, loop):
 
 def main() -> None:
     """CLI entry point."""
+    import os
+    if sys.stdout is None:
+        sys.stdout = open(os.devnull, "w")
+    if sys.stderr is None:
+        sys.stderr = open(os.devnull, "w")
+        
     args = _parse_args()
 
     if args.version:

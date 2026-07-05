@@ -23,10 +23,10 @@ Methods (backend -> UI):
 import math
 import PySide6.QtGui as QtGui
 from PySide6.QtCore import Qt, QTimer, Signal, QPoint, QPropertyAnimation, QEasingCurve, Property
-from PySide6.QtGui import QPainter, QColor, QRadialGradient, QLinearGradient, QPainterPath
-from PySide6.QtWidgets import QWidget, QLabel, QGraphicsOpacityEffect
+from PySide6.QtGui import QPainter, QColor, QRadialGradient, QLinearGradient, QPainterPath, QPixmap
+from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QGraphicsOpacityEffect
 
-from mouthfull.ui.theme import Colors
+from mouthfull.ui.theme import Colors, Metrics
 
 THEMES = {
     "idle":      {"a": "#4f7cff", "b": "#6d5cff", "c": "#9b5cff"},
@@ -60,6 +60,97 @@ class TranscriptBubble(QLabel):
         self.hide()
 
 
+class TranscriptPanel(QWidget):
+    """Glassmorphism-styled expanding panel that displays real-time transcription
+    history with a frosted glass effect.  Sits above the AIOrb."""
+
+    MAX_LINES = 3
+    AUTO_HIDE_MS = 5000
+
+    def __init__(self, parent=None):
+        super().__init__(parent, Qt.WindowType.FramelessWindowHint |
+                         Qt.WindowType.Tool)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setFixedWidth(300)
+
+        # --- frosted glass style ---
+        self.setStyleSheet(f"""
+            TranscriptPanel {{
+                background-color: rgba(30, 31, 34, 0.72);
+                border: 1px solid rgba(255, 255, 255, 0.08);
+                border-radius: {Metrics.RADIUS_LG}px;
+            }}
+        """)
+
+        self._layout = QVBoxLayout(self)
+        self._layout.setContentsMargins(14, 10, 14, 10)
+        self._layout.setSpacing(4)
+
+        self._lines: list[QLabel] = []
+
+        # Fade animation
+        self._opacity_fx = QGraphicsOpacityEffect(self)
+        self._opacity_fx.setOpacity(0.0)
+        self.setGraphicsEffect(self._opacity_fx)
+
+        self._fade_in = QPropertyAnimation(self._opacity_fx, b"opacity")
+        self._fade_in.setDuration(180)
+        self._fade_in.setStartValue(0.0)
+        self._fade_in.setEndValue(1.0)
+        self._fade_in.setEasingCurve(QEasingCurve.Type.OutCubic)
+
+        self._fade_out = QPropertyAnimation(self._opacity_fx, b"opacity")
+        self._fade_out.setDuration(250)
+        self._fade_out.setStartValue(1.0)
+        self._fade_out.setEndValue(0.0)
+        self._fade_out.setEasingCurve(QEasingCurve.Type.InCubic)
+        self._fade_out.finished.connect(self.hide)
+
+        # Auto-hide timer
+        self._hide_timer = QTimer(self)
+        self._hide_timer.setSingleShot(True)
+        self._hide_timer.timeout.connect(self.fade_hide)
+
+        self.hide()
+
+    # ---- public helpers --------------------------------------------------
+    def add_line(self, text: str):
+        """Append a transcript line, keeping at most MAX_LINES visible."""
+        lbl = QLabel(text)
+        lbl.setWordWrap(True)
+        lbl.setStyleSheet(
+            f"color: {Colors.TEXT_PRIMARY}; font-size: 11px; "
+            f"background: transparent; border: none; padding: 2px 0;"
+        )
+        self._layout.addWidget(lbl)
+        self._lines.append(lbl)
+
+        # Trim oldest lines
+        while len(self._lines) > self.MAX_LINES:
+            old = self._lines.pop(0)
+            self._layout.removeWidget(old)
+            old.deleteLater()
+
+        self.adjustSize()
+        self._restart_hide_timer()
+
+    def fade_show(self):
+        """Show the panel with a subtle fade-in."""
+        self._fade_out.stop()
+        self.show()
+        self._fade_in.start()
+        self._restart_hide_timer()
+
+    def fade_hide(self):
+        """Hide the panel with a subtle fade-out."""
+        self._fade_in.stop()
+        self._fade_out.start()
+
+    # ---- internals -------------------------------------------------------
+    def _restart_hide_timer(self):
+        self._hide_timer.start(self.AUTO_HIDE_MS)
+
+
 class AIOrb(QWidget):
     clicked_signal = Signal()
     double_clicked_signal = Signal()
@@ -79,6 +170,10 @@ class AIOrb(QWidget):
         self._smoothLevel = 0.0
         self.t = 0.0
         self._drag_offset = None
+
+        # Glow-layer cache (TASK 2 — avoid re-rendering every frame)
+        self._glow_cache: QPixmap | None = None
+        self._glow_dirty = True
         
         self._scale = 1.0
         self._y_offset = 0.0
@@ -103,6 +198,9 @@ class AIOrb(QWidget):
         self._bubble_hide_timer.timeout.connect(self._bubble.hide)
 
         self._reposition_bubble()
+
+        # Glassmorphism transcript panel (TASK 1)
+        self._transcript_panel = TranscriptPanel(self)
 
         # Animations
         self._opacity_effect = QGraphicsOpacityEffect(self)
@@ -190,6 +288,7 @@ class AIOrb(QWidget):
             state = "idle"
         self._state = state
         self._targetColor = THEMES[state].copy()
+        self._glow_dirty = True   # invalidate glow cache
         
         if state != "idle":
             # Task is active, keep orb alive
@@ -216,6 +315,14 @@ class AIOrb(QWidget):
         self._bubble.show()
         self._bubble_hide_timer.start(duration_ms)
 
+    def show_transcript_panel(self, text: str):
+        """Backend -> UI: add a transcript line to the glassmorphism panel and show it."""
+        if not text:
+            return
+        self._transcript_panel.add_line(text)
+        self._reposition_transcript_panel()
+        self._transcript_panel.fade_show()
+
     def set_visible(self, visible: bool):
         if visible:
             from PySide6.QtGui import QGuiApplication
@@ -231,7 +338,7 @@ class AIOrb(QWidget):
         else:
             self.hide_orb()
 
-    def snap_to_corner(self, screen_geo, corner: str = "bottom-center", margin: int = 48):
+    def snap_to_corner(self, screen_geo, corner: str = "bottom-center", margin: int = -20):
         """Convenience placement helper (bottom-center is the new default)."""
         w, h = self.width(), self.height()
         if "center" in corner:
@@ -247,6 +354,16 @@ class AIOrb(QWidget):
         self._bubble.adjustSize()
         bw = self._bubble.width()
         self._bubble.move((self.width() - bw) // 2, -self._bubble.height() - 10)
+
+    def _reposition_transcript_panel(self):
+        """Place the transcript panel centred above the orb."""
+        self._transcript_panel.adjustSize()
+        pw = self._transcript_panel.width()
+        ph = self._transcript_panel.height()
+        self._transcript_panel.move(
+            (self.width() - pw) // 2,
+            -ph - 16,
+        )
         
     def _noise(self, x):
         s = math.sin(x * 12.9898) * 43758.5453
@@ -283,6 +400,7 @@ class AIOrb(QWidget):
     def moveEvent(self, event):
         super().moveEvent(event)
         self._reposition_bubble()
+        self._reposition_transcript_panel()
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
@@ -345,14 +463,24 @@ class AIOrb(QWidget):
         
         a, b, c = self._color['a'], self._color['b'], self._color['c']
         
-        # Glow
+        # Glow (cached — only regenerated when state/colour changes)
         glowR = radius * (2.2 + level * 0.6)
-        glow = QRadialGradient(cx, cy, glowR, cx, cy)
-        glow.setColorAt(0.0, self._hexA(b, 0.35 + level * 0.25))
-        glow.setColorAt(1.0, self._hexA(b, 0.0))
-        p.setPen(Qt.PenStyle.NoPen)
-        p.setBrush(glow)
-        p.drawEllipse(int(cx - glowR), int(cy - glowR), int(glowR * 2), int(glowR * 2))
+        glow_size = int(glowR * 2) + 2
+        if self._glow_dirty or self._glow_cache is None or self._glow_cache.size().width() != glow_size:
+            self._glow_cache = QPixmap(glow_size, glow_size)
+            self._glow_cache.fill(Qt.GlobalColor.transparent)
+            gp = QPainter(self._glow_cache)
+            gp.setRenderHint(QPainter.RenderHint.Antialiasing)
+            gc = glow_size / 2.0
+            glow = QRadialGradient(gc, gc, glowR, gc, gc)
+            glow.setColorAt(0.0, self._hexA(b, 0.35 + level * 0.25))
+            glow.setColorAt(1.0, self._hexA(b, 0.0))
+            gp.setPen(Qt.PenStyle.NoPen)
+            gp.setBrush(glow)
+            gp.drawEllipse(0, 0, glow_size, glow_size)
+            gp.end()
+            self._glow_dirty = False
+        p.drawPixmap(int(cx - glowR), int(cy - glowR), self._glow_cache)
         
         # Thinking ring
         if self._state == 'processing':

@@ -21,7 +21,13 @@ if TYPE_CHECKING:
 
 
 class LLMService:
-    """Service to handle text refinement using LLMs."""
+    """Service to handle text refinement using LLMs.
+
+    The LLM is always initialized when the service starts.  Whether it
+    actually receives work is controlled by the Prompt Processor: when the
+    Prompt Processor is disabled it emits RefinedTextReady directly and
+    no PromptReady event ever reaches this service.
+    """
 
     def __init__(self, config: LLMConfig, event_bus: EventBus) -> None:
         self._config = config
@@ -32,28 +38,11 @@ class LLMService:
         self._aborted = False
 
     async def start(self) -> None:
-        """Initialize the LLM provider and subscribe to events."""
+        """Subscribe to events. The model will be loaded lazily on first use."""
         from mouthfull.utils.events import PipelineAbort
         self._bus.subscribe(PipelineAbort, self._on_abort)
-        if not self._config.enabled:
-            logger.info("LLM Service is disabled.")
-            # If disabled, we should just pass the transcript through directly.
-            # But we'll handle that in _on_prompt_ready.
-            self._bus.subscribe(PromptReady, self._on_prompt_ready)
-            return
-
-        logger.info("Initializing LLM Provider: {}", self._config.provider)
-        try:
-            provider_cls = get_provider(self._config.provider)
-            self._engine = provider_cls(self._config, self._api_keys)
-            await self._engine.load_model()
-        except Exception as e:
-            logger.error("Failed to load LLM Provider: {}", e)
-            await self._bus.emit(PipelineError(stage="llm_load", error=e))
-            return
-
         self._bus.subscribe(PromptReady, self._on_prompt_ready)
-        logger.info("LLM Service started.")
+        logger.info("LLM Service started (model will load lazily).")
 
     async def stop(self) -> None:
         """Unsubscribe and unload the model."""
@@ -70,10 +59,26 @@ class LLMService:
 
     async def _on_prompt_ready(self, event: PromptReady) -> None:
         self._aborted = False
-        if not self._config.enabled or not self._engine or not getattr(event, 'is_prompt', True):
-            # Pass-through if disabled or if this is not a prompt (raw transcript)
+        if not getattr(event, 'is_prompt', True):
+            # Pass-through if event is not a prompt
+            logger.info("LLM Service received non-prompt text. Passing through to TextInjector.")
             await self._bus.emit(RefinedTextReady(text=event.text))
             return
+
+        # Lazy load the engine on first use
+        if not self._engine:
+            logger.info("Initializing LLM Provider lazily: {}", self._config.provider)
+            await self._bus.emit(StatusChanged(status="processing", message="Loading LLM..."))
+            try:
+                from mouthfull.backend.llm.providers import get_provider
+                provider_cls = get_provider(self._config.provider)
+                self._engine = provider_cls(self._config, self._api_keys)
+                await self._engine.load_model()
+            except Exception as e:
+                logger.error("Failed to load LLM Provider: {}", e)
+                await self._bus.emit(PipelineError(stage="llm_load", error=e))
+                await self._bus.emit(RefinedTextReady(text=event.text))
+                return
 
         logger.info("Refining transcript: '{}'", event.text)
         await self._bus.emit(StatusChanged(status="processing", message="Refining..."))

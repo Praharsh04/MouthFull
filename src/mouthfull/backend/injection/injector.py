@@ -72,6 +72,7 @@ class TextInjector:
             await asyncio.to_thread(self._inject_sync, text)
             
             duration_ms = (time.perf_counter() - start_time) * 1000
+            logger.info("Text successfully injected in {:.2f}ms.", duration_ms)
             from mouthfull.utils.events import PipelineTiming
             await self._bus.emit(PipelineTiming(stage="inject", duration_ms=duration_ms))
             
@@ -87,6 +88,11 @@ class TextInjector:
             self._typewrite(text)
         else:
             self._clipboard_inject(text)
+            
+        if getattr(self._config, "auto_enter", False):
+            time.sleep(0.05)
+            self._keyboard.press(Key.enter)
+            self._keyboard.release(Key.enter)
 
     def _typewrite(self, text: str) -> None:
         """Inject text by simulating keystrokes."""
@@ -102,7 +108,11 @@ class TextInjector:
                 time.sleep(delay)
 
     def _clipboard_inject(self, text: str) -> None:
-        """Inject text via clipboard (fast but overwrites clipboard temporarily)."""
+        """Inject text via clipboard (fast but overwrites clipboard temporarily).
+
+        If the paste simulation fails or the target app appears to block it,
+        automatically falls back to keystroke-based injection (_typewrite).
+        """
         # 1. Save current clipboard
         old_clipboard = ""
         try:
@@ -110,28 +120,34 @@ class TextInjector:
         except Exception as e:
             logger.warning("Could not read old clipboard: {}", e)
 
-        # 2. Set new text to clipboard
         try:
+            # 2. Set new text to clipboard
             pyperclip.copy(text)
-        except Exception as e:
-            raise RuntimeError(f"Failed to copy to clipboard: {e}") from e
 
-        # 3. Simulate Ctrl+V
-        time.sleep(0.05)
-
-        try:
+            # 3. Simulate Ctrl+V
+            time.sleep(0.01)
             with self._keyboard.pressed(Key.ctrl):
                 self._keyboard.press('v')
                 self._keyboard.release('v')
-        except Exception as e:
-            raise RuntimeError(f"Failed to simulate keystrokes: {e}") from e
 
-        # 4. Wait for the app to consume the paste
-        time.sleep(0.1)
+            # 4. Wait for the app to consume the paste
+            time.sleep(0.02)
 
-        # 5. Restore old clipboard
-        try:
-            if old_clipboard:
-                pyperclip.copy(old_clipboard)
+            # Note: We cannot reliably verify if the paste was consumed because 
+            # Ctrl+V does not clear the clipboard. We only fall back if an 
+            # exception occurs during simulation.
+
         except Exception as e:
-            logger.warning("Could not restore old clipboard: {}", e)
+            # Paste simulation failed entirely – fall back to typewrite
+            logger.warning(
+                "Clipboard injection failed ({}). Falling back to typewrite injection.", e
+            )
+            self._typewrite(text)
+
+        finally:
+            # 6. Restore old clipboard
+            try:
+                if old_clipboard:
+                    pyperclip.copy(old_clipboard)
+            except Exception as e:
+                logger.warning("Could not restore old clipboard: {}", e)

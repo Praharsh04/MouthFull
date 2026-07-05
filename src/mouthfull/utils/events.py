@@ -43,6 +43,7 @@ class AudioCaptured:
 
     audio: NDArray[np.float32]
     sample_rate: int
+    app_context: tuple[str, str] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,6 +52,7 @@ class SpeechDetected:
 
     audio: NDArray[np.float32]
     sample_rate: int
+    app_context: tuple[str, str] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -58,6 +60,7 @@ class TranscriptReady:
     """Emitted when STT produces a raw transcript."""
 
     text: str
+    app_context: tuple[str, str] | None = None
 
 
 @dataclass(frozen=True, slots=True)

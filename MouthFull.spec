@@ -1,11 +1,15 @@
 # -*- mode: python ; coding: utf-8 -*-
+from PyInstaller.utils.hooks import collect_data_files
+
+datas = [('src/mouthfull/assets', 'mouthfull/assets')]
+datas += collect_data_files('faster_whisper')
 
 
 a = Analysis(
     ['src\\mouthfull\\__main__.py'],
     pathex=[],
     binaries=[],
-    datas=[('src/mouthfull/assets', 'mouthfull/assets')],
+    datas=datas,
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
@@ -32,6 +36,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon=['src\\mouthfull\\assets\\logo.ico'],
 )
 coll = COLLECT(
     exe,
