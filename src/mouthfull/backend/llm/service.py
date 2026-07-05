@@ -80,7 +80,7 @@ class LLMService:
                 await self._bus.emit(RefinedTextReady(text=event.text))
                 return
 
-        logger.info("Refining transcript: '{}'", event.text)
+        logger.info("Stage: LLM Request - Sending prompt to LLM provider '{}'", self._config.provider)
         await self._bus.emit(StatusChanged(status="processing", message="Refining..."))
 
         try:
@@ -96,7 +96,7 @@ class LLMService:
                 logger.info("LLM aborted.")
                 return
 
-            logger.info("Refined text: '{}'", refined_text)
+            logger.info("Stage: LLM Response - Received: '{}'", refined_text)
 
             if refined_text.strip():
                 await self._bus.emit(RefinedTextReady(text=refined_text))

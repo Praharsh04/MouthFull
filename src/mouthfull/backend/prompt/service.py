@@ -64,7 +64,7 @@ class PromptProcessorService:
             return
 
         # ── Slow path: wrap in prompt template and route through LLM ──
-        logger.info("Applying prompt template to transcript...")
+        logger.info("Stage: Prompt Assembly - Applying template to transcript")
         try:
             template = self._config.default_prompt
             
@@ -82,12 +82,17 @@ class PromptProcessorService:
                     logger.debug("Using context-specific template for '{}'", display_name)
             
             # Replace placeholder with actual transcript
-            prompt = template.replace("{{input}}", event.text)
+            if "{{transcription}}" in template:
+                prompt = template.replace("{{transcription}}", event.text)
+            elif "{{input}}" in template:
+                prompt = template.replace("{{input}}", event.text)
+            else:
+                prompt = f"{template}\n\n{event.text}"
             
             if self._aborted:
                 return
 
-            logger.debug(f"Generated prompt: {prompt}")
+            logger.info(f"Stage: Prompt Assembly - Generated prompt: {prompt}")
             await self._bus.emit(PromptReady(text=prompt, is_prompt=True))
 
         except Exception as e:

@@ -411,8 +411,9 @@ class UIBridge(QObject):
         providers_state = []
         for p in AVAILABLE_PROVIDERS:
             p_dict = dict(p)
-            p_dict["status"] = "success" if self.app._config.llm.provider == p["id"] else "untested"
-            if self.app._config.llm.provider == p["id"]:
+            p_dict["active"] = (self.app._config.llm.provider == p["id"])
+            p_dict["status"] = "success" if p_dict["active"] else "untested"
+            if p_dict["active"]:
                 p_dict["current_model"] = self.app._config.llm.model
             
             # Mask API keys if they exist

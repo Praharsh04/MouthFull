@@ -109,7 +109,7 @@ class STTService:
         if not self._engine:
             return
 
-        logger.info("Transcribing {} seconds of audio...", len(event.audio) / event.sample_rate)
+        logger.info("Stage: STT - Transcribing {} seconds of audio...", len(event.audio) / event.sample_rate)
 
         # Display progress in overlay
         await self._bus.emit(StatusChanged(status="processing", message="Transcribing..."))
@@ -133,7 +133,7 @@ class STTService:
                 logger.info("STT aborted.")
                 return
 
-            logger.info("Transcription: {}", transcript)
+            logger.info("Stage: STT - Result: '{}'", transcript)
 
             if transcript.strip():
                 await self._bus.emit(TranscriptReady(text=transcript, app_context=event.app_context))

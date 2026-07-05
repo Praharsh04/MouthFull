@@ -123,7 +123,7 @@ class AudioCapture:
                 callback=self._audio_callback,
             )
             self._stream.start()
-            logger.info("Recording started.")
+            logger.info("Stage: Audio Capture - Recording started.")
             # Tell the UI we are recording
             asyncio.run_coroutine_threadsafe(
                 self._bus.emit(StatusChanged(status="recording", message="Listening...")),
@@ -173,7 +173,7 @@ class AudioCapture:
         if len(self._replay_buffer) > self._max_replay:
             self._replay_buffer.pop(0)
 
-        logger.info("Recording stopped. Captured {:.2f}s of audio.", len(audio_data) / self._config.sample_rate)
+        logger.info("Stage: Audio Capture - Recording stopped. Captured {:.2f}s of audio.", len(audio_data) / self._config.sample_rate)
 
         if getattr(self._config, 'save_audio', False):
             from datetime import datetime

@@ -63,7 +63,7 @@ class TextInjector:
             await self._bus.emit(StatusChanged(status="idle", message=""))
             return
 
-        logger.info("Injecting text: '{}'", text)
+        logger.info("Stage: Text Injection - Injecting text: '{}'", text)
 
         try:
             import time
@@ -72,7 +72,7 @@ class TextInjector:
             await asyncio.to_thread(self._inject_sync, text)
             
             duration_ms = (time.perf_counter() - start_time) * 1000
-            logger.info("Text successfully injected in {:.2f}ms.", duration_ms)
+            logger.info("Stage: Text Injection - Successfully injected in {:.2f}ms.", duration_ms)
             from mouthfull.utils.events import PipelineTiming
             await self._bus.emit(PipelineTiming(stage="inject", duration_ms=duration_ms))
             
