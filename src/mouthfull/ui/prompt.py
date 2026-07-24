@@ -1,6 +1,6 @@
 
 import os
-from PySide6.QtCore import Signal, Qt, QSize
+from PySide6.QtCore import Signal, Qt, QSize, QPoint
 from PySide6.QtGui import QIcon, QPixmap
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
@@ -754,7 +754,7 @@ class PromptProcessorPage(QWidget):
         logger.info("Add Application button clicked. Opening AppPickerDialog.")
         try:
             dialog = AppPickerDialog(self)
-            dialog.move(self.mapToGlobal(self.btn_add_app.pos()) + QSize(0, 30))
+            dialog.move(self.mapToGlobal(self.btn_add_app.pos()) + QPoint(0, 30))
             if dialog.exec():
                 app_data = dialog.get_selected_app()
                 if app_data:
