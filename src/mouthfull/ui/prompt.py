@@ -394,10 +394,11 @@ class AppPromptCard(QFrame):
 # ═══════════════════════════════════════════════════════════════════════
 
 class _ProviderAccordionItem(QFrame):
-    def __init__(self, provider: dict, on_test, on_key_changed, on_save, parent=None):
+    def __init__(self, provider: dict, on_test, on_key_changed, on_save, on_selected, parent=None):
         super().__init__(parent)
         self.provider = provider
         self.provider_id = provider["id"]
+        self.on_selected = on_selected
         
         self.setStyleSheet(f"""
             _ProviderAccordionItem {{
@@ -483,10 +484,12 @@ class _ProviderAccordionItem(QFrame):
         self.expanded = not self.expanded
         self.body.setVisible(self.expanded)
         self.chevron.setText("▴" if self.expanded else "▾")
+        if self.expanded and self.on_selected:
+            self.on_selected(self.provider_id)
         self.parent()._on_accordion_toggled(self)
 
 class ProviderManagerModal(QDialog):
-    def __init__(self, providers_cache, on_test, on_key_changed, on_save, parent=None):
+    def __init__(self, providers_cache, on_test, on_key_changed, on_save, on_provider_selected, parent=None):
         super().__init__(parent)
         self.setWindowTitle("AI Providers")
         self.setFixedSize(500, 500)
@@ -519,7 +522,7 @@ class ProviderManagerModal(QDialog):
         
         self.panels = []
         for prov in providers_cache:
-            panel = _ProviderAccordionItem(prov, on_test, on_key_changed, on_save, self)
+            panel = _ProviderAccordionItem(prov, on_test, on_key_changed, on_save, on_provider_selected, self)
             self.panels.append(panel)
             self.list_layout.addWidget(panel)
             
@@ -569,6 +572,9 @@ class PromptProcessorPage(QWidget):
     on_test_connection_clicked = Signal(str)
     on_api_key_changed = Signal(str, str)
     on_save_clicked = Signal(str)
+    on_provider_selected = Signal(str)
+    on_model_variant_changed = Signal(str, str)
+    on_add_current_app = Signal()
 
     def __init__(self):
         super().__init__()
@@ -738,6 +744,7 @@ class PromptProcessorPage(QWidget):
             on_test=self.on_test_connection_clicked.emit,
             on_key_changed=self.on_api_key_changed.emit,
             on_save=self.on_save_clicked.emit,
+            on_provider_selected=self.on_provider_selected.emit,
             parent=self
         )
         self.provider_modal.exec()
