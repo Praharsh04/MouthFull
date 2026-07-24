@@ -181,7 +181,9 @@ class PromptProcessorConfig(BaseModel):
     """Configuration for processing raw transcripts into LLM prompts."""
 
     enabled: bool = False
-    default_prompt: str = "Process normally.\n\n{{input}}"
+    default_prompt: str = ""
+    default_provider: Optional[str] = None
+    default_model: Optional[str] = None
     app_prompts: dict[str, AppPromptEntry] = Field(default_factory=dict)
 
 

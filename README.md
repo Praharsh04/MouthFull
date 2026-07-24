@@ -40,7 +40,7 @@ The compiled output will be placed in `dist/Release/MouthFull/`.
 ## 🎯 Key Features
 
 - **Blazing Fast Defaults**: MouthFull ships with NVIDIA's `Parakeet TDT 1.1b` out of the box for ultra-low latency, real-time voice dictation that works flawlessly and instantly.
-- **Prompt Processor**: Seamlessly wrap your transcribed voice in a custom LLM prompt before it types! Use the `{{input}}` macro in the new Prompt Processor tab to automate coding, formatting, or AI querying on the fly.
+- **Application-Aware Prompt Routing**: Seamlessly wrap your transcribed voice in a custom LLM prompt *automatically based on the app you are using*. The Prompt Processor detects your active window (VS Code, Chrome, etc.) and routes the text through your custom prompts using the `{{input}}` macro before typing it out!
 - **Instant Text Injection**: Employs an ultra-fast clipboard injection method to instantly paste long blocks of generated text into your active editor (Codex, VS Code, Cursor, Chrome) without waiting for keystroke emulation.
 - **One-Click STT Models**: Effortlessly browse and download top-tier Speech-to-Text models (NVIDIA Canary, Whisper Large v3 Turbo, Moonshine) directly from the beautiful UI. Switch models instantly!
 - **Dynamic Floating Orb**: A sleek, fully animated desktop widget gives you visual feedback! The orb smoothly fades in on hotkey trigger, turns Sky Blue while listening, shifts to Green while processing, and dismisses itself when done.
@@ -52,12 +52,12 @@ The compiled output will be placed in `dist/Release/MouthFull/`.
 
 1. **Launch the App:** Open MouthFull via your Desktop shortcut or `MouthFull.exe`.
 2. **Start Speaking:** Hold or press `Ctrl + Space` (default hotkey) to capture audio. The floating orb will appear at the bottom center of your screen and pulse to your voice. When you finish, the AI will transcribe and type your speech instantly into whatever window you have focused!
-3. **Use the Prompt Processor (Optional):** Enable the Prompt Processor in the UI, write a prompt like `Translate this to Spanish: {{input}}`, and watch MouthFull automatically translate your voice and type the Spanish result!
+3. **Use the Prompt Processor (Optional):** Go to the **Prompt Processor** tab. Add your favorite applications (e.g., VS Code) and set up specific prompts for them (like `Fix this code: {{input}}`). When you dictate into those apps, MouthFull will automatically process your voice through the AI provider and type the optimized result!
 4. **Download a Model (Optional):** Go to the **Speech Models** page, select a recommended high-accuracy model, and click "Install". 
 
 ### Customization
 - Head over to the **Settings** page to change your microphone, adjust the global hotkey, or tweak the theme.
-- Go to the **LLMs** page if you want to connect your transcription directly to an AI language model (like Ollama, Llama, Mistral, or OpenAI).
+- **Global Providers**: Go to the **Prompt Processor > AI Providers** to connect your transcription directly to an AI language model (like Ollama, Llama, Mistral, OpenAI, Anthropic, Gemini, Groq, Together).
 
 ---
 

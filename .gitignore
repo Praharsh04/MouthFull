@@ -36,3 +36,4 @@ logs/
 
 # Config overrides
 config.local.yaml
+.env

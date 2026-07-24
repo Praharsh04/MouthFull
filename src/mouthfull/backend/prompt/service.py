@@ -69,24 +69,32 @@ class PromptProcessorService:
         # ── Fast O(1) Application Lookup ──
         process_name, display_name = getattr(event, 'app_context', None) or (None, None)
         
-        if not process_name:
-            logger.info("No active application detected. Bypassing AI processing.")
-            await self._bus.emit(RefinedTextReady(text=event.text))
-            return
-
-        app_entry = self._app_prompts_cache.get(process_name.lower())
-                
-        if not app_entry:
-            logger.info("No configured prompt for '{}'. Bypassing AI processing.", process_name)
+        app_entry = None
+        if process_name:
+            app_entry = self._app_prompts_cache.get(process_name.lower())
+            
+        template = None
+        provider = None
+        model = None
+        
+        if app_entry:
+            template = app_entry.prompt
+            provider = app_entry.provider
+            model = app_entry.model
+            logger.info("Using Application Prompt for '{}'", display_name)
+        elif self._config.default_prompt.strip():
+            template = self._config.default_prompt
+            provider = getattr(self._config, 'default_provider', None)
+            model = getattr(self._config, 'default_model', None)
+            logger.info("No app prompt found. Using Default Prompt.")
+        else:
+            logger.info("No matching prompt and no default prompt. Bypassing AI processing.")
             await self._bus.emit(RefinedTextReady(text=event.text))
             return
 
         # ── LLM Pipeline Path ──
-        logger.info("Stage: Prompt Assembly - Applying template to transcript for '{}'", display_name)
+        logger.info("Stage: Prompt Assembly - Applying template to transcript")
         try:
-            template = app_entry.prompt
-            provider = app_entry.provider
-            model = app_entry.model
             
             # Replace placeholder with actual transcript
             if "{{transcription}}" in template:
