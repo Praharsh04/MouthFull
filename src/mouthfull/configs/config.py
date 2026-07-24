@@ -80,6 +80,7 @@ class APIKeys(BaseSettings):
     anthropic_api_key: Optional[str] = None
     gemini_api_key: Optional[str] = None
     openrouter_api_key: Optional[str] = None
+    groq_api_key: Optional[str] = None
     custom_api_key: Optional[str] = None
 
     model_config = SettingsConfigDict(env_file=str(get_appdata_dir() / ".env"), env_file_encoding="utf-8", extra="ignore")
@@ -97,6 +98,7 @@ class LLMConfig(BaseModel):
     enabled: bool = True  # Deprecated — kept for YAML backward compat only
     provider: str = "ollama"  # e.g., llamacpp, ollama, openai, anthropic, gemini, openrouter, custom
     model: str = "llama3"
+    provider_models: dict[str, str] = Field(default_factory=dict)
     api_base: Optional[str] = None  # Used for custom APIs or overriding defaults
 
     # Local model specific
@@ -172,6 +174,8 @@ class AppPromptEntry(BaseModel):
     """Entry for an application-specific prompt."""
     name: str
     prompt: str
+    provider: Optional[str] = None
+    model: Optional[str] = None
 
 class PromptProcessorConfig(BaseModel):
     """Configuration for processing raw transcripts into LLM prompts."""

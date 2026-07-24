@@ -65,22 +65,44 @@ class LLMService:
             await self._bus.emit(RefinedTextReady(text=event.text))
             return
 
-        # Lazy load the engine on first use
-        if not self._engine:
-            logger.info("Initializing LLM Provider lazily: {}", self._config.provider)
-            await self._bus.emit(StatusChanged(status="processing", message="Loading LLM..."))
+        req_provider = getattr(event, 'provider', None) or self._config.provider
+        req_model = getattr(event, 'model', None) or self._config.model
+        
+        # Lazy load or switch the engine if provider changed
+        if not self._engine or getattr(self._engine, '_current_provider_id', None) != req_provider:
+            logger.info("Initializing/Switching LLM Provider: {}", req_provider)
+            await self._bus.emit(StatusChanged(status="processing", message=f"Loading {req_provider}..."))
             try:
+                if self._engine:
+                    await self._engine.unload_model()
+                    
                 from mouthfull.backend.llm.providers import get_provider
-                provider_cls = get_provider(self._config.provider)
-                self._engine = provider_cls(self._config, self._api_keys)
+                provider_cls = get_provider(req_provider)
+                
+                # Clone config to override provider/model for this engine
+                import copy
+                engine_config = copy.deepcopy(self._config)
+                engine_config.provider = req_provider
+                engine_config.model = req_model
+                
+                self._engine = provider_cls(engine_config, self._api_keys)
+                self._engine._current_provider_id = req_provider
                 await self._engine.load_model()
             except Exception as e:
                 logger.error("Failed to load LLM Provider: {}", e)
                 await self._bus.emit(PipelineError(stage="llm_load", error=e))
                 await self._bus.emit(RefinedTextReady(text=event.text))
                 return
+        else:
+            # Engine is correct, check if model changed
+            if getattr(self._engine, 'model', None) != req_model:
+                logger.info(f"Switching model for {req_provider}: {req_model}")
+                self._engine.model = req_model
+                if hasattr(self._engine, '_config'):
+                    self._engine._config.model = req_model
+                await self._engine.load_model()
 
-        logger.info("Stage: LLM Request - Sending prompt to LLM provider '{}'", self._config.provider)
+        logger.info("Stage: LLM Request - Sending prompt to LLM provider '{}'", req_provider)
         await self._bus.emit(StatusChanged(status="processing", message="Refining..."))
 
         try:

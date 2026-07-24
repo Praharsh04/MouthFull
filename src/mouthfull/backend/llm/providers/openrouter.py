@@ -36,6 +36,9 @@ class OpenRouterProvider(OpenAIProvider):
             "temperature": self._config.temperature,
             "max_tokens": self._config.max_tokens,
         }
+        
+        from mouthfull.utils.logger import logger
+        logger.debug(f"Provider: openrouter | Model: {self._config.model} | Endpoint: {url} | Payload: {payload}")
 
         try:
             response = await self._client.post(url, headers=headers, json=payload)

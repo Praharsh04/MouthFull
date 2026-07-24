@@ -36,9 +36,21 @@ def run_backend(app_instance, loop):
     finally:
         loop.close()
 
+_instance_mutex = None
+
 def main() -> None:
     """CLI entry point."""
     import os
+    import ctypes
+    
+    global _instance_mutex
+    mutex_name = "Global\\MouthFull_SingleInstance_Mutex"
+    _instance_mutex = ctypes.windll.kernel32.CreateMutexW(None, False, mutex_name)
+    last_error = ctypes.windll.kernel32.GetLastError()
+    if last_error == 183: # ERROR_ALREADY_EXISTS
+        logger.warning("Another instance of MouthFull is already running. Exiting.")
+        sys.exit(0)
+
     if sys.stdout is None:
         sys.stdout = open(os.devnull, "w")
     if sys.stderr is None:

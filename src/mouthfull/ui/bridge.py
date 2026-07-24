@@ -427,19 +427,39 @@ class UIBridge(QObject):
 
     def _on_llm_provider_selected(self, provider_id: str):
         from mouthfull.configs.config import save_config
+        from mouthfull.ui.llms import AVAILABLE_PROVIDERS
         self.app._config.llm.provider = provider_id
+        
+        # Pull the remembered model for this provider if it exists
+        if provider_id in self.app._config.llm.provider_models:
+            self.app._config.llm.model = self.app._config.llm.provider_models[provider_id]
+        else:
+            # Fallback to the first available model
+            for p in AVAILABLE_PROVIDERS:
+                if p["id"] == provider_id and p.get("models"):
+                    self.app._config.llm.model = p["models"][0]
+                    self.app._config.llm.provider_models[provider_id] = p["models"][0]
+                    break
+                
         save_config(self.app._config)
-        self.window.llms_page.set_active_provider(provider_id)
+        self._sync_llms_to_ui()
         asyncio.run_coroutine_threadsafe(self._restart_llm(), self.loop)
         
 
 
     def _on_llm_model_changed(self, provider_id: str, model_name: str):
         from mouthfull.configs.config import save_config
+        
+        # Always remember the model choice for this provider in the config map
+        self.app._config.llm.provider_models[provider_id] = model_name
+        
+        # If this is the currently active provider, also update the active model
         if self.app._config.llm.provider == provider_id:
             self.app._config.llm.model = model_name
             save_config(self.app._config)
             asyncio.run_coroutine_threadsafe(self._restart_llm(), self.loop)
+        else:
+            save_config(self.app._config)
 
     def _on_llm_api_key_changed(self, provider_id: str, key: str):
         if not hasattr(self, "_temp_keys"):
@@ -499,10 +519,7 @@ class UIBridge(QObject):
             await self.app._llm.stop()
             from mouthfull.backend.llm.service import LLMService
             self.app._llm = LLMService(self.app._config.llm, self.bus)
-            self.app._llm._api_keys = getattr(self.app, "_api_keys", None)
-            if not self.app._llm._api_keys:
-                from mouthfull.configs.config import APIKeys
-                self.app._llm._api_keys = APIKeys()
+            self.app._llm._api_keys = self.app._api_keys
             await self.app._llm.start()
 
     def _on_reset_defaults_clicked(self):

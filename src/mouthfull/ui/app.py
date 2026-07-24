@@ -1,9 +1,9 @@
 """
 app.py — Application Shell
 ------------------------------
-Wires together the Nav Rail, all pages (Dashboard, Models, LLMs, Performance,
-Logs, Settings), the System Tray, the Floating AI Orb, the Notification
-Center, and Toasts into one cohesive main window.
+Wires together the Nav Rail, all pages (Dashboard, Models, Prompt Processor,
+Performance, Logs, Settings), the System Tray, the Floating AI Orb, the
+Notification Center, and Toasts into one cohesive main window.
 
 This file intentionally contains ZERO backend logic. Every place a real
 backend would plug in is marked with a `# BACKEND HOOK` comment. A backend
@@ -31,7 +31,7 @@ from mouthfull.ui.theme import APP_QSS, Colors
 from mouthfull.ui.widgets import NavRail, ToastManager
 from mouthfull.ui.dashboard import DashboardPage
 from mouthfull.ui.models import ModelsPage
-from mouthfull.ui.llms import LLMProvidersPage
+# LLMProvidersPage removed — provider UI now embedded in PromptProcessorPage
 from mouthfull.ui.prompt import PromptProcessorPage
 from mouthfull.ui.performance import PerformancePage
 from mouthfull.ui.logs import LogsPage
@@ -116,8 +116,10 @@ class MainWindow(QMainWindow):
         self.stack = QStackedWidget()
         self.dashboard = DashboardPage()
         self.models_page = ModelsPage()
-        self.llms_page = LLMProvidersPage()
         self.prompt_page = PromptProcessorPage()
+        # Alias: bridge.py references window.llms_page for provider signals.
+        # PromptProcessorPage now exposes the same signal interface.
+        self.llms_page = self.prompt_page
         self.performance_page = PerformancePage()
         self.logs_page = LogsPage()
         self.settings_page = SettingsPage()
@@ -125,7 +127,6 @@ class MainWindow(QMainWindow):
         self._pages = {
             "dashboard": self.dashboard,
             "models": self.models_page,
-            "llms": self.llms_page,
             "prompt": self.prompt_page,
             "performance": self.performance_page,
             "logs": self.logs_page,

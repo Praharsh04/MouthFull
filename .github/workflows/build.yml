@@ -31,22 +31,23 @@ jobs:
         python scripts/build.py --config Release
     - name: Build Installer
       run: |
-        iscc installer.iss
+        & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
     - name: Create Portable ZIP
       run: |
-        Compress-Archive -Path dist/Release/VoiceFlow/* -DestinationPath release/VoiceFlow_Local_Portable.zip
+        New-Item -ItemType Directory -Force -Path release
+        Compress-Archive -Path dist/Release/MouthFull/* -DestinationPath release/MouthFull_Local_Portable.zip
     - name: Upload Artifacts
       if: github.event_name != 'release'
       uses: actions/upload-artifact@v4
       with:
-        name: VoiceFlow-Release
+        name: MouthFull-Release
         path: |
-          release/VoiceFlow_Local_Setup.exe
-          release/VoiceFlow_Local_Portable.zip
+          release/MouthFull_Local_Setup.exe
+          release/MouthFull_Local_Portable.zip
     - name: Publish Release Assets
       if: github.event_name == 'release'
       uses: softprops/action-gh-release@v1
       with:
         files: |
-          release/VoiceFlow_Local_Setup.exe
-          release/VoiceFlow_Local_Portable.zip
+          release/MouthFull_Local_Setup.exe
+          release/MouthFull_Local_Portable.zip

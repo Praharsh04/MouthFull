@@ -72,6 +72,13 @@ AVAILABLE_PROVIDERS = [
         "requires_key": True
     },
     {
+        "id": "groq",
+        "name": "Groq",
+        "desc": "Ultra-fast LPU inference (Llama 3, Mixtral, Gemma)",
+        "models": ["llama3-8b-8192", "llama3-70b-8192", "mixtral-8x7b-32768", "gemma-7b-it"],
+        "requires_key": True
+    },
+    {
         "id": "custom",
         "name": "Custom API Endpoint",
         "desc": "Use an OpenAI-compatible endpoint (e.g. vLLM, LMStudio)",

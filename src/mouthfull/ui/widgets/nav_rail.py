@@ -20,7 +20,6 @@ import os
 NAV_ITEMS = [
     ("dashboard", "home.svg", "Dashboard"),
     ("models", "mic.svg", "Speech Models"),
-    ("llms", "brain.svg", "LLM Providers"),
     ("prompt", "file-text.svg", "Prompt Processor"),
     ("performance", "bar-chart.svg", "Performance"),
     ("logs", "scroll.svg", "Logs"),

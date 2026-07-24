@@ -12,9 +12,10 @@ OutputDir=release
 OutputBaseFilename=MouthFull_Local_Setup
 ArchitecturesInstallIn64BitMode=x64
 PrivilegesRequired=lowest
+SetupIconFile=src\mouthfull\assets\logo.ico
 
 [Tasks]
-Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
+Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
 
 [Files]
 Source: "dist\Release\MouthFull\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs

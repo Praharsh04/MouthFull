@@ -19,6 +19,13 @@ class GeminiProvider(APIProviderBase):
 
         # Default: gemini-3.5-flash
         model = self._config.model if self._config.model else "gemini-3.5-flash"
+        
+        # Validation
+        if not model.startswith("gemini"):
+            from mouthfull.utils.logger import logger
+            logger.error(f"Invalid model '{model}' for Gemini provider. Reverting to default.")
+            model = "gemini-3.5-flash"
+
         base_url = self._config.api_base or "https://generativelanguage.googleapis.com/v1beta"
         url = f"{base_url.rstrip('/')}/models/{model}:generateContent?key={api_key}"
 
@@ -34,6 +41,9 @@ class GeminiProvider(APIProviderBase):
                 "maxOutputTokens": self._config.max_tokens,
             }
         }
+        
+        from mouthfull.utils.logger import logger
+        logger.debug(f"Provider: gemini | Model: {model} | Endpoint: {url.split('?')[0]} | Payload: {payload}")
 
         try:
             response = await self._client.post(url, json=payload)

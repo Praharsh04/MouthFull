@@ -66,20 +66,30 @@ class PromptProcessorService:
         # ── Slow path: wrap in prompt template and route through LLM ──
         logger.info("Stage: Prompt Assembly - Applying template to transcript")
         try:
-            template = self._config.default_prompt
+            process_name, display_name = event.app_context if getattr(event, 'app_context', None) else (None, None)
             
-            process_name, display_name = event.app_context if event.app_context else (None, None)
+            if not process_name:
+                logger.info("No active application detected. Bypassing AI processing.")
+                await self._bus.emit(RefinedTextReady(text=event.text))
+                return
+
+            logger.info("Detected app context: '{}' ({})", display_name, process_name)
+            process_name_lower = process_name.lower()
             
-            if process_name:
-                logger.info("Detected app context: '{}' ({})", display_name, process_name)
-                process_name_lower = process_name.lower()
-                # Build lowercased mapping on the fly to support dynamic config updates
-                app_prompts_lower = {
-                    k.lower(): v.prompt for k, v in self._config.app_prompts.items()
-                }
-                if process_name_lower in app_prompts_lower:
-                    template = app_prompts_lower[process_name_lower]
-                    logger.debug("Using context-specific template for '{}'", display_name)
+            app_entry = None
+            for k, v in self._config.app_prompts.items():
+                if k.lower() == process_name_lower:
+                    app_entry = v
+                    break
+                    
+            if not app_entry:
+                logger.info("No configured prompt for '{}'. Bypassing AI processing.", process_name)
+                await self._bus.emit(RefinedTextReady(text=event.text))
+                return
+                
+            template = app_entry.prompt
+            provider = app_entry.provider
+            model = app_entry.model
             
             # Replace placeholder with actual transcript
             if "{{transcription}}" in template:
@@ -93,7 +103,16 @@ class PromptProcessorService:
                 return
 
             logger.info(f"Stage: Prompt Assembly - Generated prompt: {prompt}")
-            await self._bus.emit(PromptReady(text=prompt, is_prompt=True))
+            
+            # Emit PromptReady with provider and model metadata attached
+            prompt_event = PromptReady(
+                text=prompt, 
+                is_prompt=True,
+                provider=provider,
+                model=model
+            )
+            
+            await self._bus.emit(prompt_event)
 
         except Exception as e:
             logger.error(f"Prompt processing failed: {e}")

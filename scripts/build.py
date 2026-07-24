@@ -36,7 +36,17 @@ def build(config: str):
         "--exclude-module=PySide6.QtWebEngineWidgets",
         "--exclude-module=PySide6.QtQml",
         "--exclude-module=PySide6.QtBluetooth",
-        "--exclude-module=torch.testing", "--collect-data=faster_whisper",
+        "--exclude-module=torch.testing", 
+        "--collect-data=faster_whisper",
+        "--collect-all=nemo",
+        "--collect-all=nemo_toolkit",
+        "--collect-all=lightning",
+        "--collect-all=pytorch_lightning",
+        "--collect-all=omegaconf",
+        "--collect-all=hydra",
+        "--collect-all=fsspec",
+        "--hidden-import=nemo.collections.asr",
+        "--hidden-import=nemo.collections.asr.models",
         # Ignore bulky unnecessary packages if any, PyInstaller handles imports
     ]
     

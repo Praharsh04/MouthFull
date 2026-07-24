@@ -9,6 +9,7 @@ from mouthfull.backend.llm.llamacpp_llm import LlamaCppLLM
 from mouthfull.backend.llm.providers.anthropic import AnthropicProvider
 from mouthfull.backend.llm.providers.custom import CustomAPIProvider
 from mouthfull.backend.llm.providers.gemini import GeminiProvider
+from mouthfull.backend.llm.providers.groq import GroqProvider
 from mouthfull.backend.llm.providers.ollama import OllamaProvider
 from mouthfull.backend.llm.providers.openai import OpenAIProvider
 from mouthfull.backend.llm.providers.openrouter import OpenRouterProvider
@@ -19,6 +20,7 @@ PROVIDERS = {
     "anthropic": AnthropicProvider,
     "gemini": GeminiProvider,
     "openrouter": OpenRouterProvider,
+    "groq": GroqProvider,
     "custom": CustomAPIProvider,
     "llamacpp": LlamaCppLLM,
 }

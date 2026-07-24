@@ -94,6 +94,10 @@ class TrayIcon(QObject):
         self.menu.addAction(mute_action)
         self.mute_action = mute_action
 
+        quit_action = QAction("Exit Application")
+        quit_action.triggered.connect(self.quit_requested.emit)
+        self.menu.addAction(quit_action)
+
         self.menu.addSeparator()
 
         dash_action = QAction("Open Dashboard")
@@ -103,12 +107,6 @@ class TrayIcon(QObject):
         settings_action = QAction("Settings")
         settings_action.triggered.connect(self.open_settings_requested.emit)
         self.menu.addAction(settings_action)
-
-        self.menu.addSeparator()
-
-        quit_action = QAction("Quit MouthFull AI")
-        quit_action.triggered.connect(self.quit_requested.emit)
-        self.menu.addAction(quit_action)
 
     def _on_toggle(self):
         self._is_running = not self._is_running

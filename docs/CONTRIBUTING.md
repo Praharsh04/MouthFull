@@ -32,3 +32,6 @@ ruff format src/ tests/
 2. Write tests for new functionality.
 3. Ensure all tests pass and linting is clean.
 4. Submit a PR with a clear description of changes.
+
+
+

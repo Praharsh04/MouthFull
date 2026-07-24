@@ -38,6 +38,16 @@ class MouthFullApp:
         from mouthfull.utils.perf import PerformanceCollector
         self._perf = PerformanceCollector(self._bus)
 
+        # Initialize API keys so it is always available
+        try:
+            from mouthfull.configs.config import APIKeys
+            self._api_keys = APIKeys()
+        except Exception as e:
+            logger.warning("Failed to initialize APIKeys: {}", e)
+            # Fallback to empty keys if loading from .env fails
+            from mouthfull.configs.config import APIKeys
+            self._api_keys = APIKeys(**{})
+
         logger.info("{} v{} initialising", __app_name__, __version__)
 
     # ------------------------------------------------------------------

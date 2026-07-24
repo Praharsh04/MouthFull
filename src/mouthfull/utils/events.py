@@ -65,10 +65,12 @@ class TranscriptReady:
 
 @dataclass(frozen=True, slots=True)
 class PromptReady:
-    """Emitted when the prompt processor has prepared the text for the LLM."""
+    """Emitted after the prompt template is applied."""
 
     text: str
     is_prompt: bool = True
+    provider: str | None = None
+    model: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

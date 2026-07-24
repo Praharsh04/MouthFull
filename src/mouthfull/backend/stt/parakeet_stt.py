@@ -41,18 +41,19 @@ class ParakeetSTT(STTEngine):
 
         logger.info("Loading Parakeet model: {}", self._config.model_size)
         try:
-            # Check if it's a CTC or RNNT model based on the name
-            if "ctc" in self._config.model_size.lower():
+            # Check if it's a CTC or RNNT/TDT model based on the name
+            model_name_lower = self._config.model_size.lower()
+            if "ctc" in model_name_lower:
                 self._model = nemo_asr.models.EncDecCTCModelBPE.from_pretrained(
                     model_name=self._config.model_size
                 )
-            elif "rnnt" in self._config.model_size.lower():
+            elif "rnnt" in model_name_lower or "tdt" in model_name_lower:
                 self._model = nemo_asr.models.EncDecRNNTModel.from_pretrained(
                     model_name=self._config.model_size
                 )
             else:
-                # Default to CTC if unsure
-                self._model = nemo_asr.models.EncDecCTCModelBPE.from_pretrained(
+                # Default to RNNT if unsure (Parakeet v3 default)
+                self._model = nemo_asr.models.EncDecRNNTModel.from_pretrained(
                     model_name=self._config.model_size
                 )
 
@@ -84,7 +85,7 @@ class ParakeetSTT(STTEngine):
         os.close(fd)
 
         try:
-            sf.write(tmp_path, audio, sample_rate)
+            sf.write(tmp_path, audio, sample_rate, subtype='PCM_16')
 
             # NeMo transcribe returns a tuple of lists.
             # Depending on model type (CTC vs RNNT), it might return 1 or 2 items.

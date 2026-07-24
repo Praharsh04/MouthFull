@@ -35,6 +35,9 @@ class AnthropicProvider(APIProviderBase):
             "temperature": self._config.temperature,
             "max_tokens": self._config.max_tokens,
         }
+        
+        from mouthfull.utils.logger import logger
+        logger.debug(f"Provider: anthropic | Model: {self._config.model} | Endpoint: {url} | Payload: {payload}")
 
         try:
             response = await self._client.post(url, headers=headers, json=payload)
