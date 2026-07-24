@@ -102,6 +102,11 @@ class UIBridge(QObject):
             self.window.dashboard.add_activity_entry("Microphone muted", "system", datetime.datetime.now().strftime("%H:%M:%S"))
         elif action_id == "clear_history":
             self.window.dashboard.activity_list.clear()
+        elif action_id == "cancel_task":
+            from mouthfull.utils.events import PipelineAbort, StatusChanged
+            asyncio.run_coroutine_threadsafe(self.bus.emit(PipelineAbort()), self.loop)
+            asyncio.run_coroutine_threadsafe(self.bus.emit(StatusChanged("idle")), self.loop)
+            self.notification_requested.emit("Cancelled", "Processing cancelled.", "warning")
         elif action_id == "test_injection":
             from mouthfull.utils.events import RefinedTextReady
             asyncio.run_coroutine_threadsafe(self.bus.emit(RefinedTextReady("Test injection text")), self.loop)

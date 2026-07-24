@@ -88,6 +88,11 @@ class TrayIcon(QObject):
         self.toggle_action.triggered.connect(self._on_toggle)
         self.menu.addAction(self.toggle_action)
 
+        self.stop_processing_action = QAction("⏹ Stop Processing")
+        self.stop_processing_action.triggered.connect(lambda: self.quick_action_triggered.emit("cancel_task"))
+        self.stop_processing_action.setEnabled(False)
+        self.menu.addAction(self.stop_processing_action)
+
         mute_action = QAction("Mute Microphone")
         mute_action.setCheckable(True)
         mute_action.triggered.connect(lambda checked: self.quick_action_triggered.emit("mute_mic"))
@@ -126,6 +131,7 @@ class TrayIcon(QObject):
         self.icon.setIcon(_make_dot_icon(STATUS_COLOR[status]))
         self.icon.setToolTip(f"MouthFull AI — {STATUS_TEXT[status]}")
         self.status_action.setText(f"● {STATUS_TEXT[status]}")
+        self.stop_processing_action.setEnabled(status == "processing")
 
     def set_running_silent(self, running: bool):
         """Reflect backend-driven start/stop state without re-emitting toggle signal."""
