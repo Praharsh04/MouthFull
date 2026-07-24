@@ -50,6 +50,15 @@ class PromptProcessorService:
     async def _on_abort(self, event) -> None:
         self._aborted = True
 
+    @property
+    def _app_prompts_cache(self):
+        # Cache the lowercased mapping to support O(1) lookups
+        # Re-evaluates if the config dictionary changes size or is updated
+        if not hasattr(self, '_cached_prompts') or self._last_config_id != id(self._config.app_prompts):
+            self._cached_prompts = {k.lower(): v for k, v in self._config.app_prompts.items()}
+            self._last_config_id = id(self._config.app_prompts)
+        return self._cached_prompts
+
     async def _on_transcript_ready(self, event: TranscriptReady) -> None:
         self._aborted = False
 
@@ -57,36 +66,24 @@ class PromptProcessorService:
             await self._bus.emit(StatusChanged(status="idle", message=""))
             return
 
-        if not self._config.enabled:
-            # ── Fast path: bypass LLM entirely, emit directly to injector ──
-            logger.info("Prompt Processor disabled. Bypassing LLM and emitting RefinedTextReady.")
+        # ── Fast O(1) Application Lookup ──
+        process_name, display_name = getattr(event, 'app_context', None) or (None, None)
+        
+        if not process_name:
+            logger.info("No active application detected. Bypassing AI processing.")
             await self._bus.emit(RefinedTextReady(text=event.text))
             return
 
-        # ── Slow path: wrap in prompt template and route through LLM ──
-        logger.info("Stage: Prompt Assembly - Applying template to transcript")
-        try:
-            process_name, display_name = event.app_context if getattr(event, 'app_context', None) else (None, None)
-            
-            if not process_name:
-                logger.info("No active application detected. Bypassing AI processing.")
-                await self._bus.emit(RefinedTextReady(text=event.text))
-                return
-
-            logger.info("Detected app context: '{}' ({})", display_name, process_name)
-            process_name_lower = process_name.lower()
-            
-            app_entry = None
-            for k, v in self._config.app_prompts.items():
-                if k.lower() == process_name_lower:
-                    app_entry = v
-                    break
-                    
-            if not app_entry:
-                logger.info("No configured prompt for '{}'. Bypassing AI processing.", process_name)
-                await self._bus.emit(RefinedTextReady(text=event.text))
-                return
+        app_entry = self._app_prompts_cache.get(process_name.lower())
                 
+        if not app_entry:
+            logger.info("No configured prompt for '{}'. Bypassing AI processing.", process_name)
+            await self._bus.emit(RefinedTextReady(text=event.text))
+            return
+
+        # ── LLM Pipeline Path ──
+        logger.info("Stage: Prompt Assembly - Applying template to transcript for '{}'", display_name)
+        try:
             template = app_entry.prompt
             provider = app_entry.provider
             model = app_entry.model

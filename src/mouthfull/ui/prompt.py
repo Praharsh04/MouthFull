@@ -523,7 +523,6 @@ class PromptProcessorPage(QWidget):
         outer.addWidget(scroll)
 
         self._build_header()
-        self._build_toggle_section()
         self._build_app_prompts_section()
         self._build_provider_section()
         self._build_save_bar()
@@ -539,23 +538,6 @@ class PromptProcessorPage(QWidget):
         subtitle.setStyleSheet(f"color: {Colors.TEXT_MUTED}; font-size: 12px; margin-bottom: 6px;")
         self._main_layout.addWidget(subtitle)
         self._main_layout.addSpacing(16)
-
-    def _build_toggle_section(self):
-        row = QHBoxLayout()
-        row.setSpacing(10)
-        self.enable_toggle = ToggleSwitch()
-        lbl = QLabel("Enable Prompt Processor")
-        lbl.setStyleSheet(f"color: {Colors.TEXT_PRIMARY}; font-size: 14px; font-weight: 500;")
-        hint = QLabel("When enabled, the correct prompt is automatically applied based on your active window.")
-        hint.setStyleSheet(f"color: {Colors.TEXT_MUTED}; font-size: 11px; font-style: italic;")
-
-        row.addWidget(self.enable_toggle)
-        row.addWidget(lbl)
-        row.addStretch()
-        self._main_layout.addLayout(row)
-        self._main_layout.addWidget(hint)
-        self._main_layout.addSpacing(20)
-        self.enable_toggle.toggled_signal.connect(lambda _: self._on_save_all())
 
     def _build_app_prompts_section(self):
         hdr = _SectionHeader("Application Prompts")
@@ -647,7 +629,6 @@ class PromptProcessorPage(QWidget):
     # ── API ──────────────────────────────────────────────────────────
 
     def set_config(self, config_dict):
-        self.enable_toggle.set_checked_silent(config_dict.get("enabled", False))
         self._app_prompts = config_dict.get("app_prompts", {})
         self._render_app_list()
 
@@ -741,7 +722,7 @@ class PromptProcessorPage(QWidget):
                 self._app_prompts[widget.process_name] = widget.get_data()
 
         settings = {
-            "enabled": self.enable_toggle.isChecked(),
+            "enabled": True, # Always true in backend for schema compat, ignored by logic
             "default_prompt": "", # Removed from UI, pass empty to satisfy schema backward compat
             "app_prompts": self._app_prompts,
         }
