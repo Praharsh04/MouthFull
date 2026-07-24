@@ -74,17 +74,17 @@ class AppPickerDialog(QDialog):
         self.list_widget.setIconSize(QSize(32, 32))
         layout.addWidget(self.list_widget)
 
-        self._apps = get_installed_applications()
-        self._populate_list("")
-
-        self.search_input.textChanged.connect(self._populate_list)
-        self.list_widget.itemActivated.connect(self.accept)
-        
         self.btn_custom = QPushButton("Add Custom Executable")
         self.btn_custom.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_custom.clicked.connect(self.accept)
         self.btn_custom.setVisible(False)
         layout.addWidget(self.btn_custom)
+
+        self._apps = get_installed_applications()
+        self._populate_list("")
+
+        self.search_input.textChanged.connect(self._populate_list)
+        self.list_widget.itemActivated.connect(self.accept)
 
     def _populate_list(self, query: str):
         self.list_widget.clear()
@@ -750,23 +750,35 @@ class PromptProcessorPage(QWidget):
         self.provider_modal.exec()
 
     def _show_add_app_dialog(self):
-        dialog = AppPickerDialog(self)
-        dialog.move(self.mapToGlobal(self.btn_add_app.pos()) + QSize(0, 30))
-        if dialog.exec():
-            app_data = dialog.get_selected_app()
-            if app_data:
-                exe = app_data["executable"]
-                if exe not in self._app_prompts:
-                    self._app_prompts[exe] = {
-                        "name": app_data["name"],
-                        "prompt": "Process normally.\n\n{{input}}",
-                        "provider": self._providers_cache[0]["id"] if self._providers_cache else "",
-                        "model": ""
-                    }
-                    self._render_app_list()
-                    self._on_save_all()
+        from mouthfull.utils.logger import logger
+        logger.info("Add Application button clicked. Opening AppPickerDialog.")
+        try:
+            dialog = AppPickerDialog(self)
+            dialog.move(self.mapToGlobal(self.btn_add_app.pos()) + QSize(0, 30))
+            if dialog.exec():
+                app_data = dialog.get_selected_app()
+                if app_data:
+                    exe = app_data["executable"]
+                    logger.info(f"Validating selected application: {exe}")
+                    if exe not in self._app_prompts:
+                        logger.info(f"Adding new application to registry: {exe}")
+                        self._app_prompts[exe] = {
+                            "name": app_data["name"],
+                            "prompt": "Process normally.\n\n{{input}}",
+                            "provider": self._providers_cache[0]["id"] if self._providers_cache else "",
+                            "model": ""
+                        }
+                        self._render_app_list()
+                        self._on_save_all()
+                    else:
+                        logger.info(f"Application already exists. Preserving settings and preventing duplicate: {exe}")
+                        # Could scroll to it here if we wanted to
+        except Exception as e:
+            logger.exception(f"Exception during Add Application workflow: {e}")
 
     def _render_app_list(self):
+        from mouthfull.utils.logger import logger
+        logger.debug("Refreshing application UI list.")
         while self.app_list_layout.count() > 0:
             item = self.app_list_layout.takeAt(0)
             if item.widget():
@@ -790,11 +802,17 @@ class PromptProcessorPage(QWidget):
         self._on_save_all()
 
     def _on_save_all(self):
-        settings = {
-            "enabled": True, 
-            "default_prompt": self._default_prompt.get("prompt", ""),
-            "default_provider": self._default_prompt.get("provider", ""),
-            "default_model": self._default_prompt.get("model", ""),
-            "app_prompts": self._app_prompts,
-        }
-        self.on_settings_changed.emit(settings)
+        from mouthfull.utils.logger import logger
+        logger.info("Save started for Prompt Processor settings.")
+        try:
+            settings = {
+                "enabled": True, 
+                "default_prompt": self._default_prompt.get("prompt", ""),
+                "default_provider": self._default_prompt.get("provider", ""),
+                "default_model": self._default_prompt.get("model", ""),
+                "app_prompts": self._app_prompts,
+            }
+            self.on_settings_changed.emit(settings)
+            logger.info("Save completed successfully.")
+        except Exception as e:
+            logger.exception(f"Exception during save: {e}")
