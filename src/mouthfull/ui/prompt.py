@@ -26,33 +26,56 @@ CONN_META = {
 #  App Picker Dialog (Searchable Dropdown)
 # ═══════════════════════════════════════════════════════════════════════
 
+from PySide6.QtWidgets import QGraphicsDropShadowEffect, QSizePolicy
+
 class AppPickerDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Add Application")
-        self.setFixedSize(500, 450)
+        self.setFixedSize(560, 480)
         self.setWindowFlags(Qt.WindowType.Popup | Qt.WindowType.FramelessWindowHint)
-        self.setStyleSheet(f"""
-            QDialog {{
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+
+        # Main wrapper to hold shadow
+        wrapper_layout = QVBoxLayout(self)
+        wrapper_layout.setContentsMargins(20, 20, 20, 20)
+
+        self.container = QFrame()
+        self.container.setStyleSheet(f"""
+            QFrame {{
                 background-color: {Colors.BG_SURFACE};
                 border: 1px solid {Colors.BORDER};
                 border-radius: 12px;
             }}
         """)
+        wrapper_layout.addWidget(self.container)
 
-        layout = QVBoxLayout(self)
+        # Drop shadow
+        shadow = QGraphicsDropShadowEffect(self)
+        shadow.setBlurRadius(25)
+        shadow.setXOffset(0)
+        shadow.setYOffset(10)
+        shadow.setColor(Qt.GlobalColor.black)
+        self.container.setGraphicsEffect(shadow)
+
+        layout = QVBoxLayout(self.container)
         layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(12)
 
         self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Search installed applications or enter custom executable...")
-        self.search_input.setFixedHeight(40)
+        self.search_input.setPlaceholderText("Search installed applications or type custom .exe...")
+        self.search_input.setFixedHeight(44)
         self.search_input.setStyleSheet(f"""
             QLineEdit {{
                 background-color: {Colors.BG_INPUT};
                 border: 1px solid {Colors.ACCENT};
                 border-radius: 8px;
-                font-size: 14px; padding: 0 12px;
+                font-size: 15px;
+                padding: 0 16px;
+                color: {Colors.TEXT_PRIMARY};
+            }}
+            QLineEdit:focus {{
+                border: 2px solid {Colors.ACCENT};
             }}
         """)
         layout.addWidget(self.search_input)
@@ -64,48 +87,118 @@ class AppPickerDialog(QDialog):
                 border: none; outline: none;
             }}
             QListWidget::item {{
-                padding: 10px; border-radius: 8px;
-                color: {Colors.TEXT_PRIMARY};
+                border-radius: 8px;
+                margin-bottom: 4px;
             }}
             QListWidget::item:selected {{
                 background-color: {Colors.ACCENT_SOFT};
             }}
+            QListWidget::item:hover {{
+                background-color: rgba(255, 255, 255, 0.05);
+            }}
         """)
-        self.list_widget.setIconSize(QSize(32, 32))
+        self.list_widget.setVerticalScrollMode(QListWidget.ScrollMode.ScrollPerPixel)
+        self.list_widget.setIconSize(QSize(36, 36))
         layout.addWidget(self.list_widget)
 
         self.btn_custom = QPushButton("Add Custom Executable")
         self.btn_custom.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_custom.setFixedHeight(48)
+        self.btn_custom.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {Colors.BG_INPUT};
+                border: 1px solid {Colors.ACCENT};
+                border-radius: 8px;
+                color: {Colors.TEXT_PRIMARY};
+                font-size: 14px; font-weight: bold;
+                text-align: left; padding-left: 16px;
+            }}
+            QPushButton:hover {{ background-color: {Colors.ACCENT_SOFT}; }}
+        """)
         self.btn_custom.clicked.connect(self.accept)
         self.btn_custom.setVisible(False)
         layout.addWidget(self.btn_custom)
 
         self._apps = get_installed_applications()
-        self._populate_list("")
+        self._items = []
+        self._populate_initial_list()
 
-        self.search_input.textChanged.connect(self._populate_list)
+        self.search_input.textChanged.connect(self._filter_list)
         self.list_widget.itemActivated.connect(self.accept)
+        
+        # Focus search immediately
+        self.search_input.setFocus()
 
-    def _populate_list(self, query: str):
-        self.list_widget.clear()
-        query = query.lower()
-        has_match = False
+    def _populate_initial_list(self):
+        from PySide6.QtWidgets import QFileIconProvider
+        from PySide6.QtCore import QFileInfo
+        icon_provider = QFileIconProvider()
+        
         for app in self._apps:
-            if query in app["name"].lower() or query in app["executable"].lower():
-                has_match = True
-                item = QListWidgetItem()
-                item.setText(f"{app['name']}\n{app['executable']}")
-                from PySide6.QtWidgets import QFileIconProvider
-                from PySide6.QtCore import QFileInfo
-                icon_provider = QFileIconProvider()
-                if os.path.exists(app["icon_path"]):
-                    icon = icon_provider.icon(QFileInfo(app["icon_path"]))
-                    item.setIcon(icon)
-                item.setData(Qt.ItemDataRole.UserRole, app)
-                self.list_widget.addItem(item)
-        self.btn_custom.setVisible(bool(query and not has_match and query.endswith(".exe")))
-        if self.list_widget.count() > 0:
+            item = QListWidgetItem(self.list_widget)
+            item.setData(Qt.ItemDataRole.UserRole, app)
+            
+            # Custom widget for rich item display
+            widget = QWidget()
+            widget_layout = QHBoxLayout(widget)
+            widget_layout.setContentsMargins(12, 8, 12, 8)
+            widget_layout.setSpacing(12)
+            
+            # Icon
+            icon_label = QLabel()
+            icon_label.setFixedSize(36, 36)
+            if os.path.exists(app["icon_path"]):
+                icon = icon_provider.icon(QFileInfo(app["icon_path"]))
+                icon_label.setPixmap(icon.pixmap(36, 36))
+            widget_layout.addWidget(icon_label)
+            
+            # Text layout (Name over Executable)
+            text_layout = QVBoxLayout()
+            text_layout.setSpacing(2)
+            
+            name_label = QLabel(app["name"])
+            name_label.setStyleSheet(f"color: {Colors.TEXT_PRIMARY}; font-size: 14px; font-weight: bold;")
+            text_layout.addWidget(name_label)
+            
+            exe_label = QLabel(app["executable"])
+            exe_label.setStyleSheet(f"color: {Colors.TEXT_SECONDARY}; font-size: 12px;")
+            text_layout.addWidget(exe_label)
+            
+            widget_layout.addLayout(text_layout)
+            widget_layout.addStretch()
+            
+            item.setSizeHint(widget.sizeHint())
+            self.list_widget.addItem(item)
+            self.list_widget.setItemWidget(item, widget)
+            self._items.append(item)
+            
+        if self._items:
             self.list_widget.setCurrentRow(0)
+
+    def _filter_list(self, query: str):
+        query = query.lower().strip()
+        has_match = False
+        
+        for item in self._items:
+            app = item.data(Qt.ItemDataRole.UserRole)
+            if not query or query in app["name"].lower() or query in app["executable"].lower():
+                item.setHidden(False)
+                has_match = True
+            else:
+                item.setHidden(True)
+                
+        # Handle custom executable fallback
+        show_custom = bool(query and not has_match and query.endswith(".exe"))
+        self.btn_custom.setVisible(show_custom)
+        if show_custom:
+            self.btn_custom.setText(f"+ Add Custom Executable: {query}")
+            
+        if has_match:
+            # Select first visible item
+            for i in range(self.list_widget.count()):
+                if not self.list_widget.item(i).isHidden():
+                    self.list_widget.setCurrentRow(i)
+                    break
 
     def get_selected_app(self):
         if self.list_widget.currentItem() and not self.btn_custom.isVisible():
